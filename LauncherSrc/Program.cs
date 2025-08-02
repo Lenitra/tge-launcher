@@ -9,6 +9,22 @@ public class Program
 {
     static void Main(string[] args)
     {
+
+        IsLatestModVersionAsync().ContinueWith(task =>
+        {
+            if (task.Result)
+            {
+                Console.WriteLine("Le mod est à jour.");
+            }
+            else
+            {
+                Console.WriteLine("Le mod n'est pas à jour. Veuillez mettre à jour le mod.");
+            }
+        });
+
+        Thread.Sleep(10000); // Pause pour laisser le temps à l'utilisateur de lire le message
+
+
         // Initialiser WinForms rendering settings AVANT toute création de fenêtre WinForms
         System.Windows.Forms.Application.EnableVisualStyles();
         System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
@@ -681,26 +697,31 @@ public class Program
     public static async Task<bool> IsLatestModVersionAsync()
     {
         // 1. Trouver la version locale
-        string buildDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "build");
-        if (!Directory.Exists(buildDir))
-            return false;
-
-        string[] modZips = Directory.GetFiles(buildDir, "tge_mod_*.zip", SearchOption.AllDirectories);
+        // Chercher le fichier tge_mod_*.zip dans le dossier parent du launcher
+        string parentDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory));
+        string[] modZips = Directory.GetFiles(parentDir, "tge_mod_*.zip", SearchOption.TopDirectoryOnly);
         if (modZips.Length == 0)
+        {
+            Console.WriteLine("Aucun fichier de mod trouvé à côté du launcher.");
             return false;
+        }
 
+        // Extraire la version la plus haute trouvée
         string? localVersion = null;
         foreach (var zip in modZips)
         {
-            var match = Regex.Match(Path.GetFileName(zip), @"tge_mod_(\\d+)\\.zip");
+            var match = Regex.Match(Path.GetFileName(zip), @"tge_mod_(\d+)\.zip");
             if (match.Success)
             {
-                if (localVersion == null || String.Compare(match.Groups[1].Value, localVersion) > 0)
-                    localVersion = match.Groups[1].Value;
+            if (localVersion == null || String.Compare(match.Groups[1].Value, localVersion) > 0)
+                localVersion = match.Groups[1].Value;
             }
         }
         if (localVersion == null)
+        {
+            Console.WriteLine("Aucune version locale trouvée.");
             return false;
+        }
 
         // 2. Récupérer la dernière version GitHub
         try
@@ -711,22 +732,44 @@ public class Program
             var response = await client.GetStringAsync(url);
             using var doc = JsonDocument.Parse(response);
             string? githubVersion = null;
-            if (doc.RootElement.TryGetProperty("tag_name", out var tag))
-                githubVersion = tag.GetString();
+            // Chercher le nom du fichier attaché au format LauncherTGE_YYYYMMDDHHMMSS.zip
+            if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (asset.TryGetProperty("name", out var nameProp))
+                    {
+                        var name = nameProp.GetString();
+                        var match = Regex.Match(name ?? "", @"LauncherTGE_(\d{14})\.zip");
+                        if (match.Success)
+                        {
+                            githubVersion = match.Groups[1].Value;
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (string.IsNullOrWhiteSpace(githubVersion))
+            {
+                Console.WriteLine("Aucune version GitHub trouvée.");
                 return false;
+            }
 
             githubVersion = githubVersion.TrimStart('v', 'V');
 
             // 3. Comparer
-            return localVersion == githubVersion;
+                Console.WriteLine($"Version locale : {localVersion}, Version GitHub : {githubVersion}");
+            if (int.TryParse(localVersion, out int localVer) && int.TryParse(githubVersion, out int githubVer))
+            {
+                return localVer >= githubVer;
+            }
+            return false;
         }
         catch
         {
             return false;
         }
     }
-
-
 }
 
