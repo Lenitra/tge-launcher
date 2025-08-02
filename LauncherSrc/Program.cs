@@ -760,14 +760,17 @@ public class Program
 
             // 3. Comparer
                 Console.WriteLine($"Version locale : {localVersion}, Version GitHub : {githubVersion}");
-            if (int.TryParse(localVersion, out int localVer) && int.TryParse(githubVersion, out int githubVer))
+            if (long.TryParse(localVersion, out long localVer) && long.TryParse(githubVersion, out long githubVer))
             {
+                Console.WriteLine($"Comparaison des versions : {localVer} >= {githubVer}");
                 return localVer >= githubVer;
             }
+            Console.WriteLine("Erreur de format de version.");
             return false;
         }
         catch
         {
+            Console.WriteLine("Erreur lors de la récupération de la dernière version depuis GitHub.");
             return false;
         }
     }
