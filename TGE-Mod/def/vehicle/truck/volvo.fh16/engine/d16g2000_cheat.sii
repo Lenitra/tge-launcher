@@ -1,0 +1,22 @@
+SiiNunit
+{
+accessory_engine_data : d16g2000.volvo.fh16.engine
+{
+	name: "D16G1000000 Ultra Mega Cheat Engine"
+	price: 1
+	unlock: 1
+	info[]: "1000000 @@hp@@ (735294@@kw@@)"
+	info[]: "5@@dg@@000@@dg@@000 @@nm@@"
+	info[]: "500-10000 @@rpm@@"
+	icon: "engine_volvo_d16"
+
+	torque: 5000000
+	rpm_limit: 10000
+	volume: 999.9
+	no_adblue_power_limit: 1.0
+
+@include "sound.sui"
+
+	overrides[]: "/def/vehicle/truck/volvo.fh16/accessory/badge/b2000.sii"
+}
+}

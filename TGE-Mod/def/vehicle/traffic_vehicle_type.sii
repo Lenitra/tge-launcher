@@ -1,0 +1,471 @@
+SiiNunit
+{
+# For modders: Please do not modify this file if you want to add a new entry. Create in
+# this directory a new file "<base_name>.<idofyourmod>.sii" where <base_name> is name of
+# base file without the extension (e.g. "city" for "/def/city.sii") and <idofyourmod> is
+# some string which is unlikely to conflict with other mod.
+#
+# Warning: Even if the units are specified in more than one source file, they share the
+# same namespace so suffixes or prefixes should be used to avoid conflicts.
+#
+#
+# NOTE: Default traffic vehicle storage path is '/def/vehicle/traffic_storage_(type).sii'
+#
+# For example, for vehicle type 'truck' the path will be:
+# '/def/vehicle/traffic_storage_truck.sii'
+#
+# NOTE: The order of 3 basic vehicle type 'groups' (car*, truck*, bus*) is important.
+# The first type of each group is considered 'default type' for that group (currently: car, truck, bus).
+# These defaults are mainly used to keep backward compatibility with versions where the vehicle types were hardcoded
+
+
+########### CAR #############
+
+# common cars (weight < 3.5t, height < 2.1m) automatically spawned at most roads
+traffic_vehicle_type : traffic.vehicle_type.car
+{
+	speed_class: car
+	license_plate_type: car
+
+	tags[]: road
+	tags[]: car_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# cars not spawned automatically - usually stationary (event, parked) cars or cars driving inside custom areas
+traffic_vehicle_type : traffic.vehicle_type.car_custom
+{
+	speed_class: car
+	license_plate_type: car
+
+	tags[]: car_all
+	tags[]: custom_all
+	tags[]: urban
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+########### TRUCK #############
+
+# Common semi-trucks (> 11t, always with 1 semi-trailer) for which special rules apply, for example weigh stations, truck lanes, etc.
+traffic_vehicle_type : traffic.vehicle_type.truck
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: road
+	tags[]: truck_semi
+	tags[]: truck_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# Light trucks, very big cars (3.5t - 7.5t) - heavier than standard cars, but still eligible for 'car' country speed limits.
+# Typically too big to spawn at standard parking places for cars. Otherwise, spawns similarly to cars.
+traffic_vehicle_type : traffic.vehicle_type.truck_light
+{
+	speed_class: car
+	license_plate_type: car
+
+	tags[]: road
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# Medium trucks (7.5t - 12t) - lighter than 'heavy' trucks, but generally lower 'truck' speed limits already apply.
+traffic_vehicle_type : traffic.vehicle_type.truck_medium
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: road
+	tags[]: truck_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# Heavy NON-semi trucks (> 11t) for which special rules apply, for example weigh stations, truck lanes, etc.
+traffic_vehicle_type : traffic.vehicle_type.truck_heavy
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: road
+	tags[]: truck_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# Heavy trucks with excessively long trailer chain (spawning only at 'multi-lane' high-speed roads)
+traffic_vehicle_type : traffic.vehicle_type.truck_long
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: road
+	tags[]: truck_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# trucks not spawned automatically - usually stationary (event, parked) trucks or trucks driving inside custom areas
+traffic_vehicle_type : traffic.vehicle_type.truck_custom
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: truck_all
+	tags[]: custom_all
+	tags[]: urban
+	tags[]: rural
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+
+########### BUS #############
+
+# vehicle for 8+ people - intercity buses
+traffic_vehicle_type : traffic.vehicle_type.bus
+{
+	speed_class: bus
+	license_plate_type: bus
+
+	tags[]: road
+	tags[]: bus_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# buses not spawned automatically - usually stationary (event, parked) buses or buses driving inside custom areas
+traffic_vehicle_type : traffic.vehicle_type.bus_custom
+{
+	speed_class: bus
+	license_plate_type: bus
+
+	tags[]: bus_all
+	tags[]: custom_all
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+
+########### RAIL #############
+
+# railed vehicles driving inside urban areas (typically city-specific models)
+traffic_vehicle_type : traffic.vehicle_type.tram
+{
+	tags[]: rail_tram
+
+	speed_class: tram
+
+	suspension_coef: 0.0
+	deceleration_limit: 8.0
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_none
+}
+
+# all non-electric locomotives - both passenger and cargo trains
+traffic_vehicle_type : traffic.vehicle_type.train
+{
+	tags[]: rail_train
+
+	speed_class: train
+
+	safe_distance: 0
+	suspension_coef: 0.0
+	deceleration_limit: 3.0
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_none
+	validation_groups[]: flares_brake_none
+	validation_groups[]: flares_drl_none
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_none
+	validation_groups[]: flares_lowbeam_min1max3
+	validation_groups[]: flares_parking_none
+	validation_groups[]: flares_reverse_none
+	validation_groups[]: wheel_particles_none
+}
+
+# all electric locomotives - both passenger and cargo trains
+traffic_vehicle_type : traffic.vehicle_type.train_wire
+{
+	tags[]: rail_train
+
+	speed_class: train
+
+	safe_distance: 0
+	suspension_coef: 0.0
+	deceleration_limit: 3.0
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_none
+	validation_groups[]: flares_brake_none
+	validation_groups[]: flares_drl_none
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_none
+	validation_groups[]: flares_lowbeam_min1max3
+	validation_groups[]: flares_parking_none
+	validation_groups[]: flares_reverse_none
+	validation_groups[]: wheel_particles_none
+}
+
+# trains not spawned automatically - usually driving inside custom areas (e.g. metro)
+traffic_vehicle_type : traffic.vehicle_type.train_custom
+{
+	tags[]: rail_train
+
+	speed_class: train
+
+	safe_distance: 0
+	suspension_coef: 0.0
+	deceleration_limit: 3.0
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_none
+	validation_groups[]: flares_brake_none
+	validation_groups[]: flares_drl_none
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_none
+	validation_groups[]: flares_lowbeam_min1max3
+	validation_groups[]: flares_parking_none
+	validation_groups[]: flares_reverse_none
+	validation_groups[]: wheel_particles_none
+}
+
+
+########### EMERGENCY #############
+
+# police cars spawning automatically at most roads - by default highway patrol ('state police') , Municipal police cars in urban areas (where available)
+traffic_vehicle_type : traffic.vehicle_type.police
+{
+	speed_class: car
+	license_plate_type: police
+
+	tags[]: road
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_min2max12
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# Firefighter vehicles - driving inside specific area only (downtown / city_centre in large cities)
+traffic_vehicle_type : traffic.vehicle_type.fire
+{
+	speed_class: truck
+	license_plate_type: truck
+
+	tags[]: road
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_min2max12
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# ambulances - driving inside specific area only (downtown / city_centre in large cities)
+traffic_vehicle_type : traffic.vehicle_type.medical
+{
+	speed_class: truck
+	license_plate_type: car
+
+	tags[]: road
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_min2max12
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+
+########### OTHER #############
+
+# front escort vehicles (exclusive for Special transport missions)
+traffic_vehicle_type : traffic.vehicle_type.escort_front
+{
+	tags[]: road
+	tags[]: escort_all
+
+	speed_class: car
+	license_plate_type: car
+
+	deceleration_limit: 6.0
+
+	cache_size: 0
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_min2max12
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# rear escort vehicles (exclusive for Special transport missions)
+traffic_vehicle_type : traffic.vehicle_type.escort_back
+{
+	tags[]: road
+	tags[]: escort_all
+
+	speed_class: car
+	license_plate_type: car
+
+	deceleration_limit: 6.0
+
+	cache_size: 0
+
+	validation_groups[]: flares_beacon_min0max28
+	validation_groups[]: flares_blinker_min2max3
+	validation_groups[]: flares_brake_min2max4
+	validation_groups[]: flares_drl_min0max2
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_min2max2
+	validation_groups[]: flares_lowbeam_min2max2
+	validation_groups[]: flares_parking_min2max4
+	validation_groups[]: flares_reverse_min1max2
+	validation_groups[]: wheel_particles_min2max4
+}
+
+# vehicles not fitting in any other type
+# serves only as storage for 'uncategorizable' vehicles and no traffic rule should reference it
+traffic_vehicle_type : traffic.vehicle_type.special
+{
+	# no tags for 'special' type
+
+	validation_groups[]: flares_beacon_none
+	validation_groups[]: flares_blinker_none
+	validation_groups[]: flares_brake_none
+	validation_groups[]: flares_drl_none
+	validation_groups[]: flares_emergency_none
+	validation_groups[]: flares_highbeam_none
+	validation_groups[]: flares_lowbeam_none
+	validation_groups[]: flares_parking_none
+	validation_groups[]: flares_reverse_none
+	validation_groups[]: wheel_particles_none
+}
+
+}

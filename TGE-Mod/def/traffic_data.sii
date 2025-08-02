@@ -1,0 +1,77 @@
+SiiNunit
+{
+
+# For modders: Please do not modify this file if you want to add a new entry. Create in
+# this directory a new file "<base_name>.<idofyourmod>.sii" where <base_name> is name of
+# base file without the extension (e.g. "city" for "/def/city.sii") and <idofyourmod> is
+# some string which is unlikely to conflict with other mod.
+#
+# Warning: Even if the units are specified in more than one source file, they share the
+# same namespace so suffixes or prefixes should be used to avoid conflicts.
+
+traffic_data : .traffic.data {
+
+	# max_vehicle_count: 50 	# Total AI vehicle count limit (including trucks)
+	
+	spawn_distance_forward: 600.0 	# The minimum distance for 'far' spawning in the forward direction. We assume that the player cannot see beyond this distance.
+	spawn_distance_backward: 200.0 	# The minimum distance for 'far' spawning in the backward direction. 
+	spawn_distance_min: 80.0 		# The minimum distance for 'close' spawning. We allow spawning from this distance only in places where the player really cannot see (for example thanks to FOV or cutplane).
+
+	remove_distance_forward: 700.0  # The minimum distance for 'far' despawning in the forward direction. We assume that this is too far for the player to meet any potential vehicles that would spawn beyond this distance.
+	remove_distance_backward: 250.0 # The minimum distance for 'far' despawning in the backward direction.
+	remove_distance_min: 150.0		# The minimum distance for 'close' despawning. We allow despawning from this distance only in places where the player really cannot see (for example thanks to FOV or cutplane).
+
+	## Global AI safety modifier - influences 'safety factor' for all AI vehicles
+	## Valid values: <-1;1>  where '-1' means 'minimum safety for all' and '1' means 'maximum safety for all'
+	## Vehicles with low safety factor tend to brake more abruptly, use low spacing distances, use lights later in case of low visibility...
+	#
+	ai_safety_modifier: -1
+
+	## Global AI patience modifier - influences 'patience factor' for all AI vehicles
+	## Valid values: <-1;1>  where '-1' means 'minimum patience for all' and '1' means 'maximum patience for all'
+	## Vehicles with low patience factor tend to overtake more often, have lower waiting times (e.g. when yielding), use horns sooner (when blocked)...
+	#
+	ai_patience_modifier: -1
+
+	## Horn and blink delay intervals - how long before an AI vehicle uses its horn (e.g. when blocked)
+	## or lights (e.g. when yielding) to notify other vehicle about something
+	## The actual value used depends on vehicle's 'patience factor': lower patience -> lower delay
+	#
+	# ai_horn_delay: (4.0, 8.0)
+	# ai_blink_delay: (3.0, 6.0)
+
+	## Yield attributes. If a vehicle (including player's one) is forced to give way to other ones for too long time, a 'yield event' can occur.
+	## This should help reducing traffic jams, which can occur at small roads during rush hours.
+	## To make a vehicle yield to another one, the following conditions must be met:
+	##
+	## 1. Vehicles must be on 'small roads' (max 1 lane in each direction)
+	## 2. The speed of the driving vehicle must not be higher than 'ai_yield_max_speed' [m/s]
+	## 3. The waiting vehicle must have been waiting at least 'ai_yield_wait_time' [s].
+	## 4. Yielding vehicle waits for the other one until it moves, but only for 'ai_yield_timeout' [s]. If nothing happens, yielding is cancelled.
+	##
+	## The actual values used depend on yielding vehicle's 'patience factor':
+	#
+	ai_yield_max_speed: (30.0, 50.0)      # oser dépasser même à vitesse plus élevée
+	ai_yield_wait_time: (0.5, 1.5)        # attendent très peu avant d’essayer de forcer le passage
+	ai_yield_timeout: (0.1, 0.5)          # attendent très peu avant d’abandonner
+
+
+	## Obsolete attributes:
+	#
+	# mass_truck: 10500.0  		# the attribute is obsolete - mass is now set per-vehicle
+	# mass_trailer: 20000.0  	# the attribute is obsolete - mass is now set per-vehicle
+	# mass_car: 2000.0  		# the attribute is obsolete - mass is now set per-vehicle
+	# max_truck_count: 4		# the attribute is obsolete - vehicle max count is now set per vehicle type
+
+	ai_displacement_curve_coef: 0.90 # limit curve displacement in curves
+
+	## Drag length limits - virtually 'shortens' vehicles/trailers to allow then to turn in sharp curves
+	## This attribute affects only on vehicles/trailers which are LONGER than the values set.
+	## The side effect of 'shortening' is that vehicles/trailers slide to sides when turning.
+	## It is more noticeable when the real length is much bigger than the limit
+	#
+	ai_drag_length_limits[0]: 12.0   # vehicles
+	ai_drag_length_limits[1]: 20.0   # trailers
+}
+
+}

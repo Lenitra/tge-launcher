@@ -1,0 +1,65 @@
+SiiNunit
+{
+vehicle_damage_data : .damage_data
+{
+	# damage dealt to truck and trailer
+
+	truck_damage_coef:	0		# truck damage coef per hit, impact speed squared modified by weights
+	trailer_damage_coef:	0
+	dragged_trailer_damage_coef: 0	# damage coef for dragging improperly connected trailer
+	truck_to_trailer_dmg: 	0		# how much damage is transferred from truck to trailer (and vice versa)
+
+	side_damage_factor:	0
+	roof_damage_factor:	0
+
+	# damage distribution to truck parts
+
+	cabin_damage_ratio:	0
+	chassis_damage_ratio:	0
+	engine_damage_ratio:	0
+	transmission_damage_ratio: 0
+	wheel_damage_ratio:	0
+
+	cabin_unfixable_damage_ratio:	0
+	chassis_unfixable_damage_ratio:	0
+	engine_unfixable_damage_ratio:	0
+	transmission_unfixable_damage_ratio: 0
+	wheel_unfixable_damage_ratio:	0
+
+	# damage distribution to trailer parts and cargo
+
+	trailer_body_damage_ratio:	0
+	trailer_chassis_damage_ratio:	0
+	trailer_wheel_damage_ratio:	0
+
+	trailer_body_unfixable_damage_ratio:	0
+	trailer_chassis_unfixable_damage_ratio:	0
+	trailer_wheel_unfixable_damage_ratio:	0
+
+	cargo_damage_ratio: 0
+
+	# truck wear per km of drive
+
+	cabin_wear:		0.0
+	chassis_wear:		0.0
+	engine_wear:		2e-6
+	transmission_wear:	2e-6
+	wheel_wear:		2e-6
+
+	cabin_wear_unfixable:		0.0
+	chassis_wear_unfixable:		0.0
+	engine_wear_unfixable:		0
+	transmission_wear_unfixable:	0
+	wheel_wear_unfixable:		0
+
+	# trailer wear per km of drive
+
+	trailer_body_wear:	0.0
+	trailer_chassis_wear:	0.0
+	trailer_wheel_wear:	0
+
+	trailer_body_wear_unfixable:		0.0
+	trailer_chassis_wear_unfixable:		0.0
+	trailer_wheel_wear_unfixable:		0
+}
+}

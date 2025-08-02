@@ -1,0 +1,18 @@
+SiiNunit
+{
+accessory_wheel_data : 4.ftire
+{
+	name: "Drift Runner"
+	price: 4615
+	unlock: 0
+	icon: "f_tire_03_paintable"
+	part_type: aftermarket
+
+	model: "/vehicle/truck/upgrade/wheel/tire/rear_2.pmd"
+	look: runner
+	roll_resistance: 0.1	# CD73
+	wet_grip: 0.6
+	noise_volume: 73
+	paintable: true
+}
+}

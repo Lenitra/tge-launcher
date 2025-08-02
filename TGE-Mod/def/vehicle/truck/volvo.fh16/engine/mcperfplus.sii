@@ -1,0 +1,33 @@
+SiiNunit
+{
+accessory_engine_data : mcperfplus.volvo.fh16.engine
+{
+	name: "Tamer le speed wagonn"
+	price: 69420
+	unlock: 0
+	
+	info[]: "310@@dg@@600 @@hp@@ (23@@dg@@500@@kw@@)"
+	info[]: "450@@dg@@000 @@nm@@"
+	info[]: "50@@dg@@000-6@@dg@@500 @@rpm@@"
+	
+	icon: "engine_volvo_d16"
+	torque: 45000
+	volume:	10
+	no_adblue_power_limit: 1
+	torque_curve[]: (300, 0)
+	torque_curve[]: (550, 0.15)
+	torque_curve[]: (2000, 0.25)
+	torque_curve[]: (3000, 0.45)
+  	torque_curve[]: (4000, 0.55)
+	torque_curve[]: (5000, 1)
+	torque_curve[]: (6500, 0.7)
+	torque_curve[]: (7000, 0.4)
+	torque_curve[]: (7500, 0)
+  	rpm_idle: 200
+  	rpm_limit: 75000
+  	rpm_limit_neutral: 75000
+	adblue_consumption: 0
+
+@include "sound.sui"
+}
+}
