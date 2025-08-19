@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using System.IO.Compression;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FlaUI.Core.AutomationElements;
@@ -8,50 +7,22 @@ using Microsoft.Win32;
 
 public class Program
 {
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
-
-
-        #region main - mise en place des conditions d'exécution 
-
-        KillTrucksBook();
-
-        #endregion
-
-
-        #region main - récupérer la dernière version du launcher
-        bool isLatest = await IsLatestVersionAsync();
-        if (!isLatest)
-        {
-            await InstallLatestVersionAsync();
-        }
-        #endregion
-
-
-
-        #region main - Demande du compte trucksbook : première exécution du launcher
+        // Initialiser WinForms rendering settings AVANT toute création de fenêtre WinForms
         System.Windows.Forms.Application.EnableVisualStyles();
         System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-        if (GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
-        {
-            SauvegarderIdentifiants();
-        }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-        #endregion
 
-
-
-        InstallMod();
-
-
-
-        #region main - TrucksBook
-        // - Démarrage de TrucksBook
-        // - Connexion à TrucksBook
-        // - Configuration du chemin ETS2
-        // - Lancement de ETS2
         bool etsStarted = false;
+
+        Console.WriteLine("Essai de kill du processus TrucksBook...");
+        KillTrucksBook();
+        Thread.Sleep(1000); // Attendre un peu pour s'assurer que le processus est bien terminé
+
+        Console.WriteLine("Installation du mod et configuration automatique du chemin ETS2...");
+        InstallMod();
+        ModifierCheminETS2(FindEuroTrucks2Exe() ?? "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\eurotrucks2.exe");
+
         Console.WriteLine("Démarrage de TrucksBook...");
         StartTrucksBook();
 
@@ -63,7 +34,7 @@ public class Program
             {
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                if (GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
+                if (counter > 1 || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
                 {
                     SauvegarderIdentifiants();
                     counter = 0; // Réinitialiser le compteur après la connexion
@@ -74,17 +45,19 @@ public class Program
                 LoginToTrucksBook();
             }
 
+            Console.WriteLine("En attente de la page d'accueil de TrucksBook...");
 
             if (DetectPageOnTrucksBook() == "home")
             {
-                ModifierCheminETS2(FindEuroTrucks2Exe() ?? "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\eurotrucks2.exe");
+
                 StartETS2();
                 etsStarted = true;
             }
         }
 
+        Console.WriteLine("ETS2 a été lancé avec succès.");
+        // Réduire la fenêtre de TrucksBook
         MinimizeTrucksBook();
-        #endregion
     }
 
 
@@ -463,7 +436,6 @@ public class Program
     #endregion
 
 
-
     #region Installation du mod
 
     public static void InstallMod()
@@ -574,7 +546,8 @@ public class Program
 
 
 
-    #region Gestion des identifiants
+
+
     public class Credentials
     {
         public required string Email { get; set; }
@@ -703,28 +676,23 @@ public class Program
         return null;
     }
 
-    #endregion
 
 
-
-    #region Vérification de la version
-
-    public static long GetLocalVersion()
+    public static async Task<bool> IsLatestModVersionAsync()
     {
-        // Chercher le fichier tge_mod_*.zip dans le dossier parent du launcher
-        string parentDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory));
-        string[] modZips = Directory.GetFiles(parentDir, "tge_mod_*.zip", SearchOption.TopDirectoryOnly);
-        if (modZips.Length == 0)
-        {
-            Console.WriteLine("Aucun fichier de mod trouvé à côté du launcher.");
-            return 0;
-        }
+        // 1. Trouver la version locale
+        string buildDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "build");
+        if (!Directory.Exists(buildDir))
+            return false;
 
-        // Extraire la version la plus haute trouvée
+        string[] modZips = Directory.GetFiles(buildDir, "tge_mod_*.zip", SearchOption.AllDirectories);
+        if (modZips.Length == 0)
+            return false;
+
         string? localVersion = null;
         foreach (var zip in modZips)
         {
-            var match = Regex.Match(Path.GetFileName(zip), @"tge_mod_(\d+)\.zip");
+            var match = Regex.Match(Path.GetFileName(zip), @"tge_mod_(\\d+)\\.zip");
             if (match.Success)
             {
                 if (localVersion == null || String.Compare(match.Groups[1].Value, localVersion) > 0)
@@ -732,16 +700,9 @@ public class Program
             }
         }
         if (localVersion == null)
-        {
-            Console.WriteLine("Aucune version locale trouvée.");
-            return 0;
-        }
+            return false;
 
-        return long.TryParse(localVersion, out long version) ? version : 0;
-    }
-
-    public static async Task<long> GetLatestVersionFromGitHubAsync()
-    {
+        // 2. Récupérer la dernière version GitHub
         try
         {
             using var client = new HttpClient();
@@ -750,142 +711,21 @@ public class Program
             var response = await client.GetStringAsync(url);
             using var doc = JsonDocument.Parse(response);
             string? githubVersion = null;
-            // Chercher le nom du fichier attaché au format LauncherTGE_YYYYMMDDHHMMSS.zip
-            if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    if (asset.TryGetProperty("name", out var nameProp))
-                    {
-                        var name = nameProp.GetString();
-                        var match = Regex.Match(name ?? "", @"LauncherTGE_(\d{14})\.zip");
-                        if (match.Success)
-                        {
-                            githubVersion = match.Groups[1].Value;
-                            break;
-                        }
-                    }
-                }
-            }
-
+            if (doc.RootElement.TryGetProperty("tag_name", out var tag))
+                githubVersion = tag.GetString();
             if (string.IsNullOrWhiteSpace(githubVersion))
-            {
-                Console.WriteLine("Aucune version GitHub trouvée.");
-                return 0;
-            }
+                return false;
 
             githubVersion = githubVersion.TrimStart('v', 'V');
-            return long.TryParse(githubVersion, out long version) ? version : 0;
 
+            // 3. Comparer
+            return localVersion == githubVersion;
         }
         catch
         {
-            Console.WriteLine("Erreur lors de la récupération de la dernière version depuis GitHub.");
-            return 0;
+            return false;
         }
     }
-
-    public static async Task<bool> IsLatestVersionAsync()
-    {
-        // 1. Trouver la version locale
-        long localVersion = GetLocalVersion();
-        long latestVersion = await GetLatestVersionFromGitHubAsync();
-
-        if (latestVersion == 0)
-        {
-            Console.WriteLine("Erreur lors de la récupération de la dernière version depuis GitHub.");
-            return true;
-        }
-
-        if (localVersion == 0)
-        {
-            Console.WriteLine("Aucune version locale trouvée.");
-            return true;
-        }
-
-        return localVersion >= latestVersion;
-    }
-
-    public static async Task InstallLatestVersionAsync()
-    {
-        long latestVersion = await GetLatestVersionFromGitHubAsync();
-        if (latestVersion == 0)
-        {
-            Console.WriteLine("Erreur lors de la récupération de la dernière version depuis GitHub.");
-            return;
-        }
-
-        // Logique pour télécharger et installer la dernière version
-        // Par exemple, télécharger le fichier zip et l'extraire dans le dossier approprié
-        Console.WriteLine($"Téléchargement de la version {latestVersion}...");
-        // Télécharger le fichier zip
-        using var client = new HttpClient();
-        var zipUrl = $"https://github.com/Lenitra/tge-launcher/releases/latest/download/LauncherTGE_{latestVersion}.zip";
-        Console.WriteLine($"Téléchargement depuis : {zipUrl}");
-        var zipBytes = await client.GetByteArrayAsync(zipUrl);
-        // Enregistrer le fichier zip
-        var zipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"LauncherTGE_{latestVersion}.zip");
-        await File.WriteAllBytesAsync(zipPath, zipBytes);
-        Console.WriteLine($"Fichier zip téléchargé : {zipPath}");
-
-        Console.WriteLine($"Remplacement de l'ancienne version par la nouvelle...");
-        // Extraction sécurisée : on ne remplace pas l'exe courant tout de suite
-        string exeName = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-        string exeFile = Path.GetFileName(exeName);
-        string extractDir = AppDomain.CurrentDomain.BaseDirectory;
-        string tempExe = Path.Combine(extractDir, $"_new_{exeFile}");
-
-        using (var archive = ZipFile.OpenRead(zipPath))
-        {
-            foreach (var entry in archive.Entries)
-            {
-                string destPath = Path.Combine(extractDir, entry.FullName);
-                // Si c'est un dossier (nom se termine par / ou \, ou taille 0 et pas de nom de fichier), juste créer le dossier
-                bool isDirectory = string.IsNullOrEmpty(entry.Name) || entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\");
-                if (isDirectory)
-                {
-                    Directory.CreateDirectory(destPath);
-                    continue;
-                }
-                // Ne jamais écraser credentials.json
-                if (string.Equals(Path.GetFileName(destPath), "credentials.json", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-                string? parentDir = Path.GetDirectoryName(destPath);
-                if (!string.IsNullOrEmpty(parentDir))
-                {
-                    Directory.CreateDirectory(parentDir);
-                }
-                if (string.Equals(Path.GetFileName(destPath), exeFile, StringComparison.OrdinalIgnoreCase))
-                {
-                    // Extraire l'exe sous un nom temporaire
-                    entry.ExtractToFile(tempExe, true);
-                }
-                else
-                {
-                    entry.ExtractToFile(destPath, true);
-                }
-            }
-        }
-
-        // Générer un batch pour remplacer l'exe après fermeture
-        string batchPath = Path.Combine(extractDir, "update_launcher.bat");
-        string batch = $"@echo off\r\n"
-            + $":loop\r\n"
-            + $"tasklist | findstr /I \"{exeFile}\" >nul\r\n"
-            + $"if not errorlevel 1 (\r\n    timeout /t 1 >nul\r\n    goto loop\r\n)\r\n"
-            + $"move /Y \"{tempExe}\" \"{exeFile}\"\r\n"
-            + $"start \"\" \"{exeFile}\"\r\n"
-            + $"del \"%~f0\"\r\n";
-        File.WriteAllText(batchPath, batch);
-        Console.WriteLine($"Mise à jour prête. Redémarrage du launcher...");
-        // Lancer le batch puis fermer
-        Process.Start(new ProcessStartInfo { FileName = batchPath, UseShellExecute = true });
-        Environment.Exit(0);
-    }
-
-    #endregion
 
 
 }
