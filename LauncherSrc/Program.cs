@@ -21,7 +21,6 @@ public class Program
 
         Console.WriteLine("Installation du mod et configuration automatique du chemin ETS2...");
         InstallMod();
-        ModifierCheminETS2(FindEuroTrucks2Exe() ?? "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\eurotrucks2.exe");
 
         Console.WriteLine("Démarrage de TrucksBook...");
         StartTrucksBook();
@@ -43,6 +42,7 @@ public class Program
 
                 // Connexion à TrucksBook
                 LoginToTrucksBook();
+                ModifierCheminETS2(FindEuroTrucks2Exe() ?? "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\eurotrucks2.exe");
             }
 
             Console.WriteLine("En attente de la page d'accueil de TrucksBook...");
