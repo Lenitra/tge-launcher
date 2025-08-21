@@ -22,8 +22,19 @@ public class Program
         Console.WriteLine("Installation du mod et configuration automatique du chemin ETS2...");
         InstallMod();
 
+        ModifierCheminETS2(FindEuroTrucks2Exe() ?? throw new FileNotFoundException("Executable Euro Truck Simulator 2 introuvable."));
+
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+        if (GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
+        {
+            SauvegarderIdentifiants();
+
+        }
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
         Console.WriteLine("Démarrage de TrucksBook...");
         StartTrucksBook();
+
 
         int counter = 0;
         while (!etsStarted)
@@ -33,7 +44,7 @@ public class Program
             {
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                if (counter > 1 || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
+                if (counter > 3 || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
                 {
                     SauvegarderIdentifiants();
                     counter = 0; // Réinitialiser le compteur après la connexion
@@ -42,14 +53,13 @@ public class Program
 
                 // Connexion à TrucksBook
                 LoginToTrucksBook();
-                ModifierCheminETS2(FindEuroTrucks2Exe() ?? "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Euro Truck Simulator 2\\bin\\win_x64\\eurotrucks2.exe");
             }
 
             Console.WriteLine("En attente de la page d'accueil de TrucksBook...");
 
             if (DetectPageOnTrucksBook() == "home")
             {
-
+                Thread.Sleep(500);
                 StartETS2();
                 etsStarted = true;
             }
@@ -58,6 +68,8 @@ public class Program
         Console.WriteLine("ETS2 a été lancé avec succès.");
         // Réduire la fenêtre de TrucksBook
         MinimizeTrucksBook();
+        // sleep 600 seconds
+        Thread.Sleep(600000);
     }
 
 
@@ -251,6 +263,7 @@ public class Program
                 if (key != null)
                 {
                     key.SetValue("ets2", nouveauChemin, RegistryValueKind.String);
+                    Console.WriteLine($"Chemin ETS2 modifié avec succès : {nouveauChemin}");
                 }
                 else
                 {
@@ -390,20 +403,91 @@ public class Program
     #region Système pour trouver le fichier eurotrucks2.exe
     public static string? FindEuroTrucks2Exe()
     {
+        // Helper: verify that the immediate parent directory name contains "x64"
+        static bool IsX64Parent(string path)
+        {
+            var parent = Path.GetFileName(Path.GetDirectoryName(path) ?? string.Empty);
+            return !string.IsNullOrEmpty(parent) && parent.IndexOf("x64", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        // 1) Try common Steam locations first (fast path)
+        try
+        {
+            var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            var steamRoot = Path.Combine(pf86, "Steam");
+
+            var candidateDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            void AddBinDirsUnder(string libraryPath)
+            {
+                try
+                {
+                    var bin = Path.Combine(libraryPath, "steamapps", "common", "Euro Truck Simulator 2", "bin");
+                    if (Directory.Exists(bin))
+                    {
+                        foreach (var d in Directory.EnumerateDirectories(bin, "*x64*", SearchOption.TopDirectoryOnly))
+                        {
+                            candidateDirs.Add(d);
+                        }
+                    }
+                }
+                catch { /* ignore and continue */ }
+            }
+
+            if (Directory.Exists(steamRoot))
+            {
+                // Default Steam library
+                AddBinDirsUnder(steamRoot);
+
+                // Additional Steam libraries from libraryfolders.vdf
+                try
+                {
+                    var vdf = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
+                    if (File.Exists(vdf))
+                    {
+                        foreach (var line in File.ReadLines(vdf))
+                        {
+                            var m = Regex.Match(line, "\"path\"\\s+\"([^\"]+)\"");
+                            if (m.Success)
+                            {
+                                var libPath = m.Groups[1].Value.Replace("\\\\", "\\");
+                                if (Directory.Exists(libPath))
+                                {
+                                    AddBinDirsUnder(libPath);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { /* ignore parsing/IO errors */ }
+            }
+
+            foreach (var dir in candidateDirs)
+            {
+                var exe = Path.Combine(dir, "eurotrucks2.exe");
+                if (File.Exists(exe) && IsX64Parent(exe))
+                {
+                    return exe;
+                }
+            }
+        }
+        catch { /* ignore and fallback to broad search */ }
+
+        // 2) Fallback: scan all drives for directories containing "x64" and look for eurotrucks2.exe inside
         foreach (var drive in GetAllDrives())
         {
             try
             {
-                foreach (var file in Directory.EnumerateFiles(drive, "eurotrucks2.exe", SearchOption.AllDirectories))
+                foreach (var dir in Directory.EnumerateDirectories(drive, "*x64*", SearchOption.AllDirectories))
                 {
-                    var parentDir = Path.GetFileName(Path.GetDirectoryName(file));
-                    if (parentDir != null && parentDir.Equals("x64", StringComparison.OrdinalIgnoreCase))
+                    var exe = Path.Combine(dir, "eurotrucks2.exe");
+                    if (File.Exists(exe) && IsX64Parent(exe))
                     {
-                        return file;
+                        return exe;
                     }
                 }
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is DirectoryNotFoundException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is DirectoryNotFoundException || ex is PathTooLongException)
             {
                 // Ignore folders/drives we can't access
             }
@@ -412,6 +496,7 @@ public class Program
                 Console.WriteLine($"Erreur lors de la recherche de eurotrucks2.exe : {ex.Message}");
             }
         }
+
         return null;
     }
 
