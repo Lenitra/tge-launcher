@@ -403,91 +403,20 @@ public class Program
     #region Système pour trouver le fichier eurotrucks2.exe
     public static string? FindEuroTrucks2Exe()
     {
-        // Helper: verify that the immediate parent directory name contains "x64"
-        static bool IsX64Parent(string path)
-        {
-            var parent = Path.GetFileName(Path.GetDirectoryName(path) ?? string.Empty);
-            return !string.IsNullOrEmpty(parent) && parent.IndexOf("x64", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        // 1) Try common Steam locations first (fast path)
-        try
-        {
-            var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-            var steamRoot = Path.Combine(pf86, "Steam");
-
-            var candidateDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            void AddBinDirsUnder(string libraryPath)
-            {
-                try
-                {
-                    var bin = Path.Combine(libraryPath, "steamapps", "common", "Euro Truck Simulator 2", "bin");
-                    if (Directory.Exists(bin))
-                    {
-                        foreach (var d in Directory.EnumerateDirectories(bin, "*x64*", SearchOption.TopDirectoryOnly))
-                        {
-                            candidateDirs.Add(d);
-                        }
-                    }
-                }
-                catch { /* ignore and continue */ }
-            }
-
-            if (Directory.Exists(steamRoot))
-            {
-                // Default Steam library
-                AddBinDirsUnder(steamRoot);
-
-                // Additional Steam libraries from libraryfolders.vdf
-                try
-                {
-                    var vdf = Path.Combine(steamRoot, "steamapps", "libraryfolders.vdf");
-                    if (File.Exists(vdf))
-                    {
-                        foreach (var line in File.ReadLines(vdf))
-                        {
-                            var m = Regex.Match(line, "\"path\"\\s+\"([^\"]+)\"");
-                            if (m.Success)
-                            {
-                                var libPath = m.Groups[1].Value.Replace("\\\\", "\\");
-                                if (Directory.Exists(libPath))
-                                {
-                                    AddBinDirsUnder(libPath);
-                                }
-                            }
-                        }
-                    }
-                }
-                catch { /* ignore parsing/IO errors */ }
-            }
-
-            foreach (var dir in candidateDirs)
-            {
-                var exe = Path.Combine(dir, "eurotrucks2.exe");
-                if (File.Exists(exe) && IsX64Parent(exe))
-                {
-                    return exe;
-                }
-            }
-        }
-        catch { /* ignore and fallback to broad search */ }
-
-        // 2) Fallback: scan all drives for directories containing "x64" and look for eurotrucks2.exe inside
         foreach (var drive in GetAllDrives())
         {
             try
             {
-                foreach (var dir in Directory.EnumerateDirectories(drive, "*x64*", SearchOption.AllDirectories))
+                foreach (var file in Directory.EnumerateFiles(drive, "eurotrucks2.exe", SearchOption.AllDirectories))
                 {
-                    var exe = Path.Combine(dir, "eurotrucks2.exe");
-                    if (File.Exists(exe) && IsX64Parent(exe))
+                    var parentDir = Path.GetFileName(Path.GetDirectoryName(file));
+                    if (parentDir != null && parentDir.Equals("win_x64", StringComparison.OrdinalIgnoreCase))
                     {
-                        return exe;
+                        return file;
                     }
                 }
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is DirectoryNotFoundException || ex is PathTooLongException)
+            catch (Exception ex) when (ex is UnauthorizedAccessException || ex is DirectoryNotFoundException)
             {
                 // Ignore folders/drives we can't access
             }
@@ -496,7 +425,6 @@ public class Program
                 Console.WriteLine($"Erreur lors de la recherche de eurotrucks2.exe : {ex.Message}");
             }
         }
-
         return null;
     }
 
