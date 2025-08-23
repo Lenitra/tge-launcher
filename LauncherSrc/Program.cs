@@ -1,4 +1,9 @@
-﻿using System.Diagnostics;
+﻿#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8600// Dereference of a possibly null reference.
+#pragma warning disable CS8603// Dereference of a possibly null reference.
+using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FlaUI.Core.AutomationElements;
@@ -14,48 +19,40 @@ public class Program
         System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
         bool etsStarted = false;
-
-        Console.WriteLine("Essai de kill du processus TrucksBook...");
         KillTrucksBook();
-        Thread.Sleep(1000); // Attendre un peu pour s'assurer que le processus est bien terminé
+        Thread.Sleep(500); // Attendre un peu pour s'assurer que le processus est bien terminé
+
+        if (!ETS2RegistryKeyExist())
+        {
+            Console.WriteLine("Premier lancement...");
+            StartTrucksBook();
+            Thread.Sleep(2000);
+        }
+
+        KillTrucksBook();
+        Thread.Sleep(500); // Attendre un peu pour s'assurer que le processus est bien terminé
 
         Console.WriteLine("Installation du mod et configuration automatique du chemin ETS2...");
         InstallMod();
 
-        ModifierCheminETS2(FindEuroTrucks2Exe() ?? throw new FileNotFoundException("Executable Euro Truck Simulator 2 introuvable."));
+        ModifierCheminETS2(FindEuroTrucks2Exe() ?? string.Empty);
 
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-        if (GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
+        while (CheckLogin() == false || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
         {
             SauvegarderIdentifiants();
-
         }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
         Console.WriteLine("Démarrage de TrucksBook...");
         StartTrucksBook();
 
 
-        int counter = 0;
         while (!etsStarted)
         {
-            counter++;
+            ModifierCheminETS2(FindEuroTrucks2Exe() ?? string.Empty);
             if (DetectPageOnTrucksBook() == "login")
             {
-
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-                if (counter > 3 || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
-                {
-                    SauvegarderIdentifiants();
-                    counter = 0; // Réinitialiser le compteur après la connexion
-                }
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-
-                // Connexion à TrucksBook
                 LoginToTrucksBook();
             }
-
-            Console.WriteLine("En attente de la page d'accueil de TrucksBook...");
 
             if (DetectPageOnTrucksBook() == "home")
             {
@@ -63,13 +60,12 @@ public class Program
                 StartETS2();
                 etsStarted = true;
             }
+
         }
 
         Console.WriteLine("ETS2 a été lancé avec succès.");
         // Réduire la fenêtre de TrucksBook
         MinimizeTrucksBook();
-        // sleep 600 seconds
-        Thread.Sleep(600000);
     }
 
 
@@ -176,6 +172,39 @@ public class Program
         }
     }
 
+    static bool CheckLogin()
+    {
+        // Lire les identifiants depuis credentials.json
+        Credentials? creds = GetCredentials();
+        if (creds == null || string.IsNullOrWhiteSpace(creds.Email) || string.IsNullOrWhiteSpace(creds.Password))
+        {
+            Console.WriteLine("Identifiants invalides dans credentials.json.");
+            return false;
+        }
+
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("tge-launcher");
+
+            var url = "https://trucksbook.eu/login-user";
+            var form = new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string, string>("email", creds.Email),
+                new KeyValuePair<string, string>("pass", creds.Password),
+            });
+
+            using var response = client.PostAsync(url, form).GetAwaiter().GetResult();
+            bool ok = response.StatusCode == HttpStatusCode.OK;
+            Console.WriteLine($"Login check HTTP {(int)response.StatusCode} {(response.ReasonPhrase ?? string.Empty)} -> {(ok ? "OK" : "NOK")}");
+            return ok;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors de la vérification du login: {ex.Message}");
+            return false;
+        }
+    }
 
     static string DetectPageOnTrucksBook()
     {
@@ -253,12 +282,23 @@ public class Program
     }
 
 
+    public static bool ETS2RegistryKeyExist()
+    {
+        using RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\TrucksBook", writable: true);
+        if (key != null)
+        {
+            return true;
+        }
+        return false;
+    }
+
     public static void ModifierCheminETS2(string nouveauChemin)
     {
         try
         {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
-            using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\TrucksBook", writable: true))
+            using RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\TrucksBook", writable: true);
+#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             {
                 if (key != null)
                 {
@@ -270,7 +310,6 @@ public class Program
                     throw new Exception("Clé de registre 'TrucksBook' introuvable.");
                 }
             }
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         }
         catch (Exception ex)
         {
@@ -291,9 +330,7 @@ public class Program
 
         if (!waitUntilFound)
         {
-#pragma warning disable CS8603 // Possible null reference return.
             return GetProcessByNames(processNames);
-#pragma warning restore CS8603 // Possible null reference return.
         }
 
 
@@ -332,76 +369,8 @@ public class Program
 
 
 
-    #region Utility Methods
-    public static void ListInteractiveElementsWithFlaUI()
-    {
-        try
-        {
-            using var automation = new UIA3Automation();
-            using var app = FlaUI.Core.Application.Attach(GetLogiciel());
-
-            var window = app.GetMainWindow(automation);
-            if (window == null)
-            {
-                Console.WriteLine("Fenêtre principale non trouvée.");
-                return;
-            }
-
-            Console.WriteLine($"Fenêtre principale détectée : {window.Title}\n");
-            Console.WriteLine("Exploration des éléments interactifs de la fenêtre :\n");
-
-            ListElementsRecursive(window, 0);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Erreur lors de l'exploration de la fenêtre : " + ex.Message);
-        }
-    }
-
-    private static void ListElementsRecursive(AutomationElement element, int level)
-    {
-        string indent = new string(' ', level * 2);
-        string name = element.Name;
-        string controlType = element.ControlType.ToString() ?? "?";
-        string automationId = element.AutomationId;
-
-        Console.WriteLine($"{indent}- [{controlType}] Name: '{name}'  Id: '{automationId}'");
-
-        var children = element.FindAllChildren();
-        foreach (var child in children)
-        {
-            ListElementsRecursive(child, level + 1);
-        }
-    }
-
-
-
-    public static void DebugElement(AutomationElement element)
-    {
-        if (element == null)
-        {
-            Console.WriteLine("[DebugElement] Element est null.");
-            return;
-        }
-        Console.WriteLine("[DebugElement] --- Détail de l'élément ---");
-        Console.WriteLine($"Type: {element.ControlType}");
-        Console.WriteLine($"Name: '{element.Name}'");
-        Console.WriteLine($"AutomationId: '{element.AutomationId}'");
-        Console.WriteLine($"ClassName: '{element.ClassName}'");
-        Console.WriteLine($"FrameworkId: '{element.FrameworkType}'");
-        Console.WriteLine($"BoundingRectangle: {element.BoundingRectangle}");
-        Console.WriteLine($"IsEnabled: {element.IsEnabled}");
-        Console.WriteLine($"IsOffscreen: {element.IsOffscreen}");
-        Console.WriteLine("[DebugElement] --------------------------");
-    }
-
-
-    #endregion
-
-
-
     #region Système pour trouver le fichier eurotrucks2.exe
-    
+
     public static string? FindEuroTrucks2Exe()
     {
         // Helper: verify that the immediate parent directory name contains "x64"
@@ -815,5 +784,79 @@ public class Program
     }
 
 
-}
 
+
+
+
+
+    #region Utility Methods
+    public static void ListInteractiveElementsWithFlaUI()
+    {
+        try
+        {
+            using var automation = new UIA3Automation();
+            using var app = FlaUI.Core.Application.Attach(GetLogiciel());
+
+            var window = app.GetMainWindow(automation);
+            if (window == null)
+            {
+                Console.WriteLine("Fenêtre principale non trouvée.");
+                return;
+            }
+
+            Console.WriteLine($"Fenêtre principale détectée : {window.Title}\n");
+            Console.WriteLine("Exploration des éléments interactifs de la fenêtre :\n");
+
+            ListElementsRecursive(window, 0);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Erreur lors de l'exploration de la fenêtre : " + ex.Message);
+        }
+    }
+
+    private static void ListElementsRecursive(AutomationElement element, int level)
+    {
+        string indent = new string(' ', level * 2);
+        string name = element.Name;
+        string controlType = element.ControlType.ToString() ?? "?";
+        string automationId = element.AutomationId;
+
+        Console.WriteLine($"{indent}- [{controlType}] Name: '{name}'  Id: '{automationId}'");
+
+        var children = element.FindAllChildren();
+        foreach (var child in children)
+        {
+            ListElementsRecursive(child, level + 1);
+        }
+    }
+
+
+
+    public static void DebugElement(AutomationElement element)
+    {
+        if (element == null)
+        {
+            Console.WriteLine("[DebugElement] Element est null.");
+            return;
+        }
+        Console.WriteLine("[DebugElement] --- Détail de l'élément ---");
+        Console.WriteLine($"Type: {element.ControlType}");
+        Console.WriteLine($"Name: '{element.Name}'");
+        Console.WriteLine($"AutomationId: '{element.AutomationId}'");
+        Console.WriteLine($"ClassName: '{element.ClassName}'");
+        Console.WriteLine($"FrameworkId: '{element.FrameworkType}'");
+        Console.WriteLine($"BoundingRectangle: {element.BoundingRectangle}");
+        Console.WriteLine($"IsEnabled: {element.IsEnabled}");
+        Console.WriteLine($"IsOffscreen: {element.IsOffscreen}");
+        Console.WriteLine("[DebugElement] --------------------------");
+    }
+
+
+    #endregion
+
+
+}
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8603 // Dereference of a possibly null reference.
+#pragma warning disable CS8600// Dereference of a possibly null reference.
