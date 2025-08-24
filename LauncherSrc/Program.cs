@@ -14,13 +14,27 @@ public class Program
 {
     static void Main(string[] args)
     {
+
+        DownloadLatestModVersion();
+        RunInstallUpdate();
+
+
+        Thread.Sleep(1000000);
+    }
+
+    static void a(string[] args)
+    {
+        Console.WriteLine("Lancement du launcher...");
         // Initialiser WinForms rendering settings AVANT toute création de fenêtre WinForms
         System.Windows.Forms.Application.EnableVisualStyles();
         System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
 
+
         bool etsStarted = false;
         KillTrucksBook();
         Thread.Sleep(500); // Attendre un peu pour s'assurer que le processus est bien terminé
+
+        // CheckAndUpdateLauncher();
 
         if (!ETS2RegistryKeyExist())
         {
@@ -296,9 +310,7 @@ public class Program
     {
         try
         {
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
             using RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\TrucksBook", writable: true);
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
             {
                 if (key != null)
                 {
@@ -499,9 +511,7 @@ public class Program
         Console.WriteLine("Installation du mod...");
         if (IsModUpToDate()) { return; }
 
-#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
         string modPath = GetModPath();
-#pragma warning restore CS8600 // Converting null literal or possible null value to non-nullable type.
         if (modPath == null)
         {
             Console.WriteLine("ERREUR : Le dossier 'mod' n'a pas été trouvé.");
@@ -736,27 +746,30 @@ public class Program
 
     public static async Task<bool> IsLatestModVersionAsync()
     {
-        // 1. Trouver la version locale
-        string buildDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "build");
-        if (!Directory.Exists(buildDir))
-            return false;
+        long githubVersion = 0;
+        long localVersion = 0;
 
-        string[] modZips = Directory.GetFiles(buildDir, "tge_mod_*.zip", SearchOption.AllDirectories);
-        if (modZips.Length == 0)
-            return false;
 
-        string? localVersion = null;
-        foreach (var zip in modZips)
+        // 1. Trouver le fichier qui a pour regex tge_mod_([0-9]+)\.zip dans le dossier actuel
+        var currentFolder = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory);
+        Console.WriteLine($"Recherche des fichiers de mod dans : {AppDomain.CurrentDomain.BaseDirectory}");
+        // Utiliser une regex pour extraire la version depuis le nom du fichier
+        foreach (var file in currentFolder)
         {
-            var match = Regex.Match(Path.GetFileName(zip), @"tge_mod_(\\d+)\\.zip");
-            if (match.Success)
+            var match = Regex.Match(Path.GetFileName(file), @"tge_mod_([0-9]+)\.zip");
+            if (match.Success && long.TryParse(match.Groups[1].Value, out var ver))
             {
-                if (localVersion == null || String.Compare(match.Groups[1].Value, localVersion) > 0)
-                    localVersion = match.Groups[1].Value;
+                if (ver > localVersion)
+                    localVersion = ver;
             }
         }
-        if (localVersion == null)
+
+        if (localVersion == 0)
+        {
+            Console.WriteLine("Aucun fichier de mod local trouvé.");
             return false;
+        }
+
 
         // 2. Récupérer la dernière version GitHub
         try
@@ -766,26 +779,132 @@ public class Program
             var url = "https://api.github.com/repos/Lenitra/tge-launcher/releases/latest";
             var response = await client.GetStringAsync(url);
             using var doc = JsonDocument.Parse(response);
-            string? githubVersion = null;
-            if (doc.RootElement.TryGetProperty("tag_name", out var tag))
-                githubVersion = tag.GetString();
-            if (string.IsNullOrWhiteSpace(githubVersion))
-                return false;
+            if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (asset.TryGetProperty("name", out var name) && name.GetString()?.StartsWith("LauncherTGE_") == true)
+                    {
+                        var part = name.GetString()?.Split('_')[1].Split('.')[0];
+                        githubVersion = long.TryParse(part, out var ver) ? ver : 0;
+                    }
+                }
 
-            githubVersion = githubVersion.TrimStart('v', 'V');
-
-            // 3. Comparer
-            return localVersion == githubVersion;
+            }
         }
         catch
         {
-            return false;
+            Console.WriteLine("Erreur lors de la vérification de la version GitHub.");
+            return true;
         }
+
+        // 3. Comparer
+        Console.WriteLine($"{localVersion} : Local");
+        Console.WriteLine($"{githubVersion} : GitHub");
+        Console.WriteLine($"Comparaison des versions du launcher : {(localVersion >= githubVersion ? "À jour" : "Obsolète")}");
+        return localVersion >= githubVersion;
+
     }
 
 
+    public static void CheckAndUpdateLauncher()
+    {
+        if (IsLatestModVersionAsync().Result)
+        {
+            Console.WriteLine("Le launcher est à jour.");
+            return;
+        }
+        Console.WriteLine("Une nouvelle version du launcher est disponible.");
+        DownloadLatestModVersion();
+    }
 
 
+// TODO: 
+    public static void RunInstallUpdate()
+    {
+        // Exécuter le script installUpdate.bat dans une nouvelle console
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installUpdate.bat")}\"",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+        process.Start();
+        process.WaitForExit();
+
+        // sys.exit
+        Environment.Exit(0);
+    }
+
+    public static void DownloadLatestModVersion()
+    {
+        try
+        {
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("tge-launcher");
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+            var url = "https://api.github.com/repos/Lenitra/tge-launcher/releases/latest";
+            var response = client.GetStringAsync(url).GetAwaiter().GetResult();
+            using var doc = JsonDocument.Parse(response);
+            string? downloadUrl = null;
+            string? assetName = null;
+            if (doc.RootElement.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    if (asset.TryGetProperty("name", out var name) && name.GetString()?.StartsWith("LauncherTGE_") == true &&
+                        asset.TryGetProperty("browser_download_url", out var download))
+                    {
+                        downloadUrl = download.GetString();
+                        assetName = name.GetString();
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(downloadUrl))
+            {
+                Console.WriteLine("Aucun asset 'LauncherTGE_*' trouvé sur la release GitHub.");
+                return;
+            }
+
+            // Déterminer le nom de fichier de destination
+            string fileName;
+            try
+            {
+                var uri = new Uri(downloadUrl);
+                fileName = Path.GetFileName(uri.LocalPath);
+            }
+            catch
+            {
+                fileName = assetName ?? "LauncherTGE_latest.zip";
+            }
+
+            // Enregistrer dans un sous-dossier "build" proche de l'exécutable
+            var buildDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "build");
+            Directory.CreateDirectory(buildDir);
+            var destinationPath = Path.Combine(buildDir, fileName);
+
+            Console.WriteLine($"Téléchargement de '{fileName}'...");
+            using var resp = client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
+            resp.EnsureSuccessStatusCode();
+            using var stream = resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+            using var fs = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            stream.CopyTo(fs);
+            fs.Flush(true);
+            Console.WriteLine($"Fichier téléchargé: {destinationPath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors du téléchargement de la dernière version du mod : {ex.Message}");
+        }
+    }
 
 
 
