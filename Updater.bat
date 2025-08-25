@@ -16,7 +16,24 @@ for %%f in ("%OUT%\*.zip") do (
     tar -xf "%%~ff" -C "%OUT%"
 )
 
+REM Déplacer les fichier du dossier build en .exe et .pdb et dans le répertoire ROOT
+for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat") do (
+    echo Déplacement de "%%~nxf" vers "%ROOT%"
+    move /Y "%%~ff" "%ROOT%"
+)
 
+REM Déplacer le zip du mod qui à pour regex : tge_mod_([0-9])
+for %%f in ("%ROOT%\tge_mod_([0-9]*).zip") do (
+    echo Déplacement de "%%~nxf" vers "%ROOT%"
+    move /Y "%%~ff" "%ROOT%"
+)
+
+REM Supprimer le dossier build
+rmdir /S /Q "%OUT%"
 
 echo Terminé.
+
+REM Lancer l'application
+call start "" "%ROOT%\LauncherSrc.exe"
+
 exit /b 0
