@@ -23,7 +23,7 @@ for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat") do (
 )
 
 REM Déplacer le zip du mod qui à pour regex : tge_mod_([0-9])
-for %%f in ("%ROOT%\tge_mod_([0-9]*).zip") do (
+for %%f in ("%ROOT%\tge_mod_([0-9]+).zip") do (
     echo Déplacement de "%%~nxf" vers "%ROOT%"
     move /Y "%%~ff" "%ROOT%"
 )
@@ -36,4 +36,5 @@ echo Terminé.
 REM Lancer l'application
 call start "" "%ROOT%\LauncherSrc.exe"
 
-exit /b 0
+REM Fermer la console
+exit 

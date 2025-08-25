@@ -12,18 +12,18 @@ using Microsoft.Win32;
 
 public class Program
 {
+
+
+
     static void Main(string[] args)
     {
 
-        DownloadLatestModVersion();
-        RunInstallUpdate();
+        if (!IsLatestModVersionAsync().Result)
+        {
+            DownloadLatestModVersion();
+            RunInstallUpdate();
+        }
 
-
-        Thread.Sleep(1000000);
-    }
-
-    static void a(string[] args)
-    {
         Console.WriteLine("Lancement du launcher...");
         // Initialiser WinForms rendering settings AVANT toute création de fenêtre WinForms
         System.Windows.Forms.Application.EnableVisualStyles();
@@ -210,8 +210,13 @@ public class Program
 
             using var response = client.PostAsync(url, form).GetAwaiter().GetResult();
             bool ok = response.StatusCode == HttpStatusCode.OK;
-            Console.WriteLine($"Login check HTTP {(int)response.StatusCode} {(response.ReasonPhrase ?? string.Empty)} -> {(ok ? "OK" : "NOK")}");
-            return ok;
+            // Afficher la réponse de la requête dans la console
+            // Console.WriteLine(response.Content.ReadAsStringAsync().GetAwaiter().GetResult().Split('{"status"')[1]);
+            if (ok && response.Content.ReadAsStringAsync().GetAwaiter().GetResult().Contains("\"status\":\"success\""))
+            {
+                return ok;
+            }
+            return false;
         }
         catch (Exception ex)
         {
