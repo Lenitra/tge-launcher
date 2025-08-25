@@ -819,25 +819,25 @@ public class Program
     }
 
 
-// TODO: 
+    // TODO: 
     public static void RunInstallUpdate()
     {
-        // Exécuter le script installUpdate.bat dans une nouvelle console
+        string batPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Updater.bat");
+
         var process = new Process
         {
             StartInfo = new ProcessStartInfo
             {
                 FileName = "cmd.exe",
-                Arguments = $"/c \"{Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "installUpdate.bat")}\"",
-                RedirectStandardOutput = true,
+                Arguments = $"/c start \"\" \"{batPath}\"", // ← "start" ouvre une nouvelle fenêtre CMD indépendante
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = false
             }
         };
-        process.Start();
-        process.WaitForExit();
 
-        // sys.exit
+        process.Start();
+
+        // Fermer l'application principale
         Environment.Exit(0);
     }
 

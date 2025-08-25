@@ -25,8 +25,8 @@ if not exist ".\build\v%FILENAMEE%" mkdir ".\build\v%FILENAMEE%"
 if not exist ".\build\v%FILENAMEE%\TrucksBook" mkdir ".\build\v%FILENAMEE%\TrucksBook"
 xcopy /E /I /Y ".\TrucksBook\*" ".\build\v%FILENAMEE%\TrucksBook\"
 
-:: Copier le fichier installUpdate.bat
-xcopy /E /I /Y ".\installUpdate.bat" ".\build\v%FILENAMEE%\"
+:: Copier le fichier Updater.bat
+xcopy /I /Y ".\Updater.bat" ".\build\v%FILENAMEE%\"
 
 :: Compiler le mod
 powershell -Command "Compress-Archive -Path 'TGE-Mod' -DestinationPath 'build\v%FILENAMEE%\tge_mod_%FILENAMEE%.zip'"
