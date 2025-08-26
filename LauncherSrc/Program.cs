@@ -48,8 +48,8 @@ public class Program
 
         Console.WriteLine("Installation du mod et configuration automatique du chemin ETS2...");
         InstallMod();
-
         ModifierCheminETS2(FindEuroTrucks2Exe() ?? string.Empty);
+
 
         while (CheckLogin() == false || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
         {
@@ -511,10 +511,36 @@ public class Program
 
     #region Installation du mod
 
+    public static void deleteOldMods()
+    {
+        string modPath = GetModPath();
+        if (modPath == null)
+        {
+            Console.WriteLine("ERREUR : Le dossier 'mod' n'a pas été trouvé.");
+            return;
+        }
+
+        // Suppression des anciens fichiers de mod
+        try
+        {
+            var oldModFiles = Directory.GetFiles(modPath, "tge_mod_*.zip");
+            foreach (var file in oldModFiles)
+            {
+                File.Delete(file);
+                Console.WriteLine($"Ancien mod supprimé : {file}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erreur lors de la suppression des anciens mods : {ex.Message}");
+        }
+    }
+
     public static void InstallMod()
     {
+        deleteOldMods();
+
         Console.WriteLine("Installation du mod...");
-        if (IsModUpToDate()) { return; }
 
         string modPath = GetModPath();
         if (modPath == null)
@@ -524,52 +550,20 @@ public class Program
         }
 
         // Recherche du fichier zip du mod dans le dossier parent
-        string modZipDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".."));
-        string[] modZips = Directory.GetFiles(modZipDirectory, "ModTGEv*.zip", SearchOption.TopDirectoryOnly);
+        string modZipPath = Path.GetFullPath(Directory.GetFiles(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory), "tge_mod_*.zip", SearchOption.TopDirectoryOnly)[0]);
 
-        // Sélectionner le mod avec la version la plus haute
-        string? dlModPath = null;
-        Version? maxVersion = null;
-        foreach (var zip in modZips)
-        {
-            string fileName = Path.GetFileNameWithoutExtension(zip);
-            // Extraction de la version avec Regex
-            var match = System.Text.RegularExpressions.Regex.Match(fileName, @"ModTGEv([0-9]+(?:\.[0-9]+)*)");
-            if (match.Success)
-            {
-                if (Version.TryParse(match.Groups[1].Value, out Version? ver))
-                {
-                    if (maxVersion == null || ver > maxVersion)
-                    {
-                        maxVersion = ver;
-                        dlModPath = zip;
-                    }
-                }
-            }
-        }
-
-        if (string.IsNullOrEmpty(dlModPath) || !File.Exists(dlModPath))
-        {
-            Console.WriteLine($"ERREUR : Aucun fichier du mod 'ModTGEv*.zip' trouvé dans '{modZipDirectory}'.");
-            return;
-        }
-
-        // Extraction du zip dans le dossier 'mod'
+        // Déplacer le zip dans le dossier modPath
         try
         {
-            // Déplacement du fichier zip dans le dossier mod
-            string destZipPath = Path.Combine(modPath, Path.GetFileName(dlModPath));
-            if (File.Exists(destZipPath))
-            {
-                File.Delete(destZipPath);
-            }
-            File.Move(dlModPath, destZipPath);
-            Console.WriteLine($"Mod déplacé avec succès (version {maxVersion}) : {destZipPath}");
+            string destZipPath = Path.Combine(modPath, Path.GetFileName(modZipPath));
+            File.Copy(modZipPath, destZipPath, true); // overwrite si déjà présent
+            Console.WriteLine($"Mod déplacé dans : {destZipPath}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erreur lors de l'installation du mod : {ex.Message}");
+            Console.WriteLine($"Erreur lors du déplacement du mod : {ex.Message}");
         }
+
     }
 
 

@@ -17,7 +17,7 @@ for %%f in ("%OUT%\*.zip") do (
 )
 
 REM Déplacer les fichier du dossier build en .exe et .pdb et dans le répertoire ROOT
-for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat") do (
+for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat" "%OUT%\*.zip") do (
     echo Déplacement de "%%~nxf" vers "%ROOT%"
     move /Y "%%~ff" "%ROOT%"
 )
