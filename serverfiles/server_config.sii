@@ -1,8 +1,8 @@
 SiiNunit
 {
-server_config : _nameless.260.0573.db10 {
+server_config : _nameless.server {
  lobby_name: "Ta Gueule Eric"
- description: "Serveur de l'entrprise TGE"
+ description: "Serveur de l'entreprise TGE"
  welcome_message: "Amuse toi bien tete de zob"
  password: ""
  max_players: 8
@@ -27,7 +27,6 @@ server_config : _nameless.260.0573.db10 {
  friends_only: false
  show_server: true
  moderator_list: 1
- - moderator_list[0]: 76561198410777777
+  moderator_list[0]: 76561198410777777
 }
-
 }
