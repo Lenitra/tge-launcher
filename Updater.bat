@@ -16,7 +16,26 @@ for %%f in ("%OUT%\*.zip") do (
     tar -xf "%%~ff" -C "%OUT%"
 )
 
+REM Déplacer les fichier du dossier build :
+:: - *.exe 
+:: - *.pdb
+:: - *.bat
+:: - *.zip
 
+for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat" "%OUT%\*.zip") do (
+    echo Déplacement de "%%~nxf" vers "%ROOT%"
+    move /Y "%%~ff" "%ROOT%"
+)
+
+
+
+REM Supprimer le dossier build
+rmdir /S /Q "%OUT%"
 
 echo Terminé.
-exit /b 0
+
+REM Lancer l'application
+call start "" "%ROOT%\LauncherSrc.exe"
+
+REM Fermer la console
+exit 
