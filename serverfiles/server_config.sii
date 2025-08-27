@@ -2,8 +2,8 @@ SiiNunit
 {
 server_config : _nameless.260.0573.db10 {
  lobby_name: "Ta Gueule Eric"
- description: "Serveur prévu pour l'entrprise TGE"
- welcome_message: "Amuse toi bien tête de zob"
+ description: "Serveur de l'entrprise TGE"
+ welcome_message: "Amuse toi bien tete de zob"
  password: ""
  max_players: 8
  max_vehicles_total: 500
