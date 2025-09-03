@@ -11,8 +11,8 @@ echo Version du projet : %FILENAMEE%
 :: Ajout d'un dossier de build s'il n'existe pas
 if not exist ".\build" mkdir ".\build"
 
-:: Supprimer les anciens fichiers de build pour qu'ils en reste maximum 4
-for /f "skip=4 delims=" %%i in ('dir /b /ad /o-d .\build') do (
+:: Supprimer les anciens fichiers de build pour qu'ils en reste maximum 1
+for /f "skip=1 delims=" %%i in ('dir /b /ad /o-d .\build') do (
     echo Suppression du dossier : %%i
     rmdir /s /q ".\build\%%i"
 )
@@ -26,7 +26,7 @@ if not exist ".\build\v%FILENAMEE%\TrucksBook" mkdir ".\build\v%FILENAMEE%\Truck
 xcopy /E /I /Y ".\TrucksBook\*" ".\build\v%FILENAMEE%\TrucksBook\"
 
 :: Copier le fichier Updater.bat
-xcopy /I /Y ".\Updater.bat" ".\build\v%FILENAMEE%\"
+xcopy /I /Y ".\LauncherSrc\tomove\Updater.bat" ".\build\v%FILENAMEE%\"
 
 :: Compiler le mod
 powershell -Command "Compress-Archive -Path 'TGE-Mod' -DestinationPath 'build\v%FILENAMEE%\tge_mod_%FILENAMEE%.zip'"

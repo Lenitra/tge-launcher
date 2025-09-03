@@ -26,7 +26,10 @@ server_config : _nameless.server {
  name_tags: true
  friends_only: false
  show_server: true
- moderator_list: 1
-  moderator_list[0]: 76561198410777777
+ moderator_list: 4
+ moderator_list[0]: 76561198410777777
+ moderator_list[1]: 76561198373615886
+ moderator_list[2]: 76561199116752696
+ moderator_list[3]: 76561198938301387
 }
 }
