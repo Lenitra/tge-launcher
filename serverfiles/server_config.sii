@@ -19,7 +19,7 @@ server_config : _nameless.server {
  hide_in_company: false
  hide_colliding: true
  force_speed_limiter: false
- mods_optioning: false
+ mods_optioning: true
  timezones: 0
  service_no_collision: true
  in_menu_ghosting: false

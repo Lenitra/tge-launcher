@@ -16,6 +16,11 @@ for %%f in ("%OUT%\*.zip") do (
     tar -xf "%%~ff" -C "%OUT%"
 )
 
+@REM Update TrucksBook
+rmdir /S /Q "%ROOT%\TrucksBook"
+move /Y "%OUT%\TrucksBook" "%ROOT%\TrucksBook"
+
+
 REM Déplacer les fichier du dossier build :
 :: - *.exe 
 :: - *.pdb
@@ -26,6 +31,7 @@ for %%f in ("%OUT%\*.exe" "%OUT%\*.pdb" "%OUT%\*.bat" "%OUT%\*.zip") do (
     echo Déplacement de "%%~nxf" vers "%ROOT%"
     move /Y "%%~ff" "%ROOT%"
 )
+
 
 
 
