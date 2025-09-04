@@ -523,11 +523,12 @@ public class Program
         // Suppression des anciens fichiers de mod
         try
         {
-            var oldModFiles = Directory.GetFiles(modPath, "tge_mod_*.zip");
-            foreach (var file in oldModFiles)
+            // Supprimer le dossiers appelés TGE_MOD si il existe
+            var oldModDirs = Directory.GetDirectories(modPath, "TGE-MOD*");
+            foreach (var dir in oldModDirs)
             {
-                File.Delete(file);
-                Console.WriteLine($"Ancien mod supprimé : {file}");
+                Directory.Delete(dir, true);
+                Console.WriteLine($"Ancien dossier de mod supprimé : {dir}");
             }
         }
         catch (Exception ex)
@@ -552,16 +553,15 @@ public class Program
         // Recherche du fichier zip du mod dans le dossier parent
         string modZipPath = Path.GetFullPath(Directory.GetFiles(Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory), "tge_mod_*.zip", SearchOption.TopDirectoryOnly)[0]);
 
-        // Déplacer le zip dans le dossier modPath
-        try
+        // unzip le fichier dans le dossier modPath
+        try 
         {
-            string destZipPath = Path.Combine(modPath, Path.GetFileName(modZipPath));
-            File.Copy(modZipPath, destZipPath, true); // overwrite si déjà présent
-            Console.WriteLine($"Mod déplacé dans : {destZipPath}");
+            System.IO.Compression.ZipFile.ExtractToDirectory(modZipPath, modPath, true); // overwrite si déjà présent
+            Console.WriteLine($"Mod extrait dans : {modPath}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erreur lors du déplacement du mod : {ex.Message}");
+            Console.WriteLine($"Erreur lors de l'extraction du mod : {ex.Message}");
         }
 
     }
