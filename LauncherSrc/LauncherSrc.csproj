@@ -7,6 +7,8 @@
     <Nullable>enable</Nullable>
     <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <StartupObject>Program</StartupObject>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +16,13 @@
     <PackageReference Include="FlaUI.UIA3" Version="4.0.0" />
   </ItemGroup>
 
-
+  <ItemGroup>
+    <None Update="assets\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="assets\logo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

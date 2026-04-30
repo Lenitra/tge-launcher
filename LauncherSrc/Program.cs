@@ -4,6 +4,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FlaUI.Core.AutomationElements;
@@ -171,13 +172,16 @@ public class Program
                 return;
             }
 
-            emailBox.Enter(email);
+            // ValuePattern : programmatique, aucune collision possible avec l'input utilisateur.
+            emailBox.Text = email;
 
             passwordBox.Focus();
-            passwordBox.Text = "";
-            passwordBox.Enter(password);
+            // PasswordBox WPF refuse ValuePattern par design (sécurité) ; on tente quand même
+            // pour les contrôles qui l'autorisent, fallback sur la simulation clavier sinon.
+            TrySetTextOrType(passwordBox, password);
 
-            loginButton.Click();
+            // InvokePattern : déclenche le bouton sans bouger la souris ni voler le focus.
+            loginButton.Invoke();
             Console.WriteLine("Clic sur le bouton de connexion effectué.");
         }
         catch (Exception ex)
@@ -294,9 +298,24 @@ public class Program
                 return;
             }
 
-            startButton.Focus();
-            startButton.Click();
+            // InvokePattern : pas besoin de focus ni de clic souris réel.
+            startButton.Invoke();
             Console.WriteLine("Clic sur le bouton de lancement ETS2 effectué.");
+        }
+    }
+
+    // Tente de poser la valeur via UIA ValuePattern (programmatique, sans collision avec l'input
+    // utilisateur). En cas d'échec — typiquement une PasswordBox WPF qui bloque ValuePattern
+    // pour raisons de sécurité — on retombe sur la simulation clavier de FlaUI.
+    static void TrySetTextOrType(FlaUI.Core.AutomationElements.TextBox tb, string value)
+    {
+        try
+        {
+            tb.Text = value;
+        }
+        catch
+        {
+            tb.Enter(value);
         }
     }
 
@@ -619,23 +638,45 @@ public class Program
         public required string Password { get; set; }
     }
 
+    [DllImport("user32.dll")]
+    private static extern bool ReleaseCapture();
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+
     public static void SauvegarderIdentifiants()
     {
-        System.Windows.Forms.Form form = new System.Windows.Forms.Form
+        // Identité visuelle TGE — palette inspirée du logo (truck bleu nuit + flammes dorées)
+        var bgPrimary   = System.Drawing.Color.FromArgb(20, 24, 31);
+        var bgTitleBar  = System.Drawing.Color.FromArgb(15, 18, 24);
+        var bgField     = System.Drawing.Color.FromArgb(31, 37, 51);
+        var accent      = System.Drawing.Color.FromArgb(245, 166, 35);
+        var accentHover = System.Drawing.Color.FromArgb(255, 184, 51);
+        var accentDown  = System.Drawing.Color.FromArgb(220, 145, 25);
+        var textPrimary = System.Drawing.Color.FromArgb(232, 232, 232);
+        var textMuted   = System.Drawing.Color.FromArgb(139, 146, 165);
+        var borderField = System.Drawing.Color.FromArgb(42, 49, 66);
+        var closeHover  = System.Drawing.Color.FromArgb(220, 60, 60);
+
+        var form = new System.Windows.Forms.Form
         {
-            Text = "Connexion TrucksBook",
-            Width = 320,
-            Height = 230,
+            Text = "TGE Launcher",
+            ClientSize = new System.Drawing.Size(420, 540),
+            FormBorderStyle = System.Windows.Forms.FormBorderStyle.None,
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen,
-            FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog,
-            MaximizeBox = false,
-            MinimizeBox = false,
-            TopMost = true // Toujours au premier plan
+            BackColor = bgPrimary,
+            TopMost = true,
         };
 
-        // Indique si la fermeture est volontaire (validation du formulaire)
+        // Icône de fenêtre / barre des tâches
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico");
+            if (File.Exists(iconPath))
+                form.Icon = new System.Drawing.Icon(iconPath);
+        }
+        catch (Exception ex) { Console.WriteLine($"Icône non chargée : {ex.Message}"); }
+
         bool fermetureVolontaire = false;
-        // Fermeture brutale du processus si la fenêtre est fermée sans enregistrement (croix)
         form.FormClosed += (s, e) =>
         {
             if (!fermetureVolontaire)
@@ -645,62 +686,180 @@ public class Program
             }
         };
 
-        // Titre principal
-        System.Windows.Forms.Label lblTitle = new System.Windows.Forms.Label
+        // === Barre de titre custom ===
+        var titleBar = new System.Windows.Forms.Panel
         {
-            Text = "Compte TrucksBook",
-            Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold),
-            Left = 10,
-            Top = 10,
-            Width = 280,
-            TextAlign = System.Drawing.ContentAlignment.MiddleCenter
+            Dock = System.Windows.Forms.DockStyle.Top,
+            Height = 36,
+            BackColor = bgTitleBar,
         };
 
-        // Champ Email
-        System.Windows.Forms.Label lblEmail = new System.Windows.Forms.Label { Left = 10, Top = 50, Text = "Email", Width = 80 };
-        System.Windows.Forms.TextBox txtEmail = new System.Windows.Forms.TextBox { Left = 100, Top = 47, Width = 180 };
-        txtEmail.Text = GetCredentials()?.Email ?? string.Empty; // Pré-remplissage si des identifiants existent
-
-        // Champ Mot de passe
-        System.Windows.Forms.Label lblPassword = new System.Windows.Forms.Label { Left = 10, Top = 85, Text = "Mot de passe", Width = 80 };
-        System.Windows.Forms.TextBox txtPassword = new System.Windows.Forms.TextBox { Left = 100, Top = 82, Width = 180, PasswordChar = '*' };
-        txtPassword.Text = GetCredentials()?.Password ?? string.Empty; // Pré-remplissage si des identifiants existent
-
-        // Bouton Enregistrer
-        System.Windows.Forms.Button btnSave = new System.Windows.Forms.Button { Text = "Enregistrer", Left = 100, Width = 180, Top = 120 };
-        btnSave.Click += (sender, e) =>
+        var titleLabel = new System.Windows.Forms.Label
         {
-            string email = txtEmail.Text.Trim();
-            string password = txtPassword.Text;
+            Text = "  TGE LAUNCHER",
+            ForeColor = textMuted,
+            Font = new System.Drawing.Font("Segoe UI", 8, System.Drawing.FontStyle.Bold),
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Dock = System.Windows.Forms.DockStyle.Fill,
+        };
+        titleBar.Controls.Add(titleLabel);
+
+        var closeBtn = new System.Windows.Forms.Button
+        {
+            Text = "✕",
+            Width = 46,
+            Dock = System.Windows.Forms.DockStyle.Right,
+            FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+            ForeColor = textMuted,
+            BackColor = bgTitleBar,
+            Font = new System.Drawing.Font("Segoe UI", 11),
+            TabStop = false,
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        closeBtn.FlatAppearance.BorderSize = 0;
+        closeBtn.FlatAppearance.MouseOverBackColor = closeHover;
+        closeBtn.MouseEnter += (s, e) => closeBtn.ForeColor = System.Drawing.Color.White;
+        closeBtn.MouseLeave += (s, e) => closeBtn.ForeColor = textMuted;
+        closeBtn.Click += (s, e) => form.Close();
+        titleBar.Controls.Add(closeBtn);
+
+        // Drag de la fenêtre via la titlebar (HTCAPTION natif)
+        System.Windows.Forms.MouseEventHandler dragHandler = (s, e) =>
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(form.Handle, 0xA1, (IntPtr)0x2, IntPtr.Zero);
+            }
+        };
+        titleBar.MouseDown += dragHandler;
+        titleLabel.MouseDown += dragHandler;
+
+        form.Controls.Add(titleBar);
+
+        // === Logo ===
+        var logoBox = new System.Windows.Forms.PictureBox
+        {
+            Width = 96,
+            Height = 96,
+            Top = 36 + 28,
+            SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
+            BackColor = bgPrimary,
+        };
+        logoBox.Left = (form.ClientSize.Width - logoBox.Width) / 2;
+        try
+        {
+            var logoPath = Path.Combine(AppContext.BaseDirectory, "assets", "logo.png");
+            if (File.Exists(logoPath))
+                logoBox.Image = System.Drawing.Image.FromFile(logoPath);
+        }
+        catch (Exception ex) { Console.WriteLine($"Logo non chargé : {ex.Message}"); }
+        form.Controls.Add(logoBox);
+
+        // === Titres ===
+        var lblTitle = new System.Windows.Forms.Label
+        {
+            Text = "TGE LAUNCHER",
+            ForeColor = textPrimary,
+            Font = new System.Drawing.Font("Segoe UI", 16, System.Drawing.FontStyle.Bold),
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Width = form.ClientSize.Width,
+            Height = 32,
+            Top = logoBox.Bottom + 12,
+            Left = 0,
+        };
+        form.Controls.Add(lblTitle);
+
+        var lblSubtitle = new System.Windows.Forms.Label
+        {
+            Text = "Connectez-vous à votre compte TrucksBook",
+            ForeColor = textMuted,
+            Font = new System.Drawing.Font("Segoe UI", 9),
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Width = form.ClientSize.Width,
+            Height = 20,
+            Top = lblTitle.Bottom + 2,
+            Left = 0,
+        };
+        form.Controls.Add(lblSubtitle);
+
+        // === Champs ===
+        int fieldWidth = 340;
+        int fieldX = (form.ClientSize.Width - fieldWidth) / 2;
+
+        var emailField = BuildField(form, "EMAIL", lblSubtitle.Bottom + 28, fieldX, fieldWidth,
+                                     bgField, textPrimary, textMuted, borderField, accent);
+        emailField.Field.Text = GetCredentials()?.Email ?? string.Empty;
+
+        var pwField = BuildField(form, "MOT DE PASSE", emailField.Container.Bottom + 16, fieldX, fieldWidth,
+                                  bgField, textPrimary, textMuted, borderField, accent);
+        pwField.Field.UseSystemPasswordChar = true;
+        pwField.Field.Text = GetCredentials()?.Password ?? string.Empty;
+
+        // === Bouton de connexion ===
+        var btnLogin = new System.Windows.Forms.Button
+        {
+            Text = "SE CONNECTER",
+            Width = fieldWidth,
+            Height = 44,
+            Left = fieldX,
+            Top = pwField.Container.Bottom + 24,
+            FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+            BackColor = accent,
+            ForeColor = bgPrimary,
+            Font = new System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold),
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        btnLogin.FlatAppearance.BorderSize = 0;
+        btnLogin.FlatAppearance.MouseOverBackColor = accentHover;
+        btnLogin.FlatAppearance.MouseDownBackColor = accentDown;
+        btnLogin.Click += (sender, e) =>
+        {
+            string email = emailField.Field.Text.Trim();
+            string password = pwField.Field.Text;
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
-                System.Windows.Forms.MessageBox.Show("Veuillez remplir tous les champs.", "Erreur", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                System.Windows.Forms.MessageBox.Show(form, "Veuillez remplir tous les champs.",
+                    "Champs requis",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
                 return;
             }
-
             if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
-                System.Windows.Forms.MessageBox.Show("Adresse email invalide.", "Erreur", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
+                System.Windows.Forms.MessageBox.Show(form, "Adresse email invalide.",
+                    "Email",
+                    System.Windows.Forms.MessageBoxButtons.OK,
+                    System.Windows.Forms.MessageBoxIcon.Warning);
                 return;
             }
 
-            var creds = new Credentials
-            {
-                Email = email,
-                Password = password
-            };
-
-            string json = JsonSerializer.Serialize(creds, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText("credentials.json", json);
+            var creds = new Credentials { Email = email, Password = password };
+            File.WriteAllText("credentials.json",
+                JsonSerializer.Serialize(creds, new JsonSerializerOptions { WriteIndented = true }));
 
             fermetureVolontaire = true;
-            form.Close(); // Ferme la fenêtre sans message
+            form.Close();
         };
+        form.Controls.Add(btnLogin);
 
-        // Bouton Aide
-        System.Windows.Forms.Button btnHelp = new System.Windows.Forms.Button { Text = "Aide", Left = 10, Top = 120, Width = 80 };
-        btnHelp.Click += (sender, e) =>
+        // === Lien Discord ===
+        var lblHelp = new System.Windows.Forms.Label
+        {
+            Text = "Besoin d'aide ?  Rejoindre le Discord",
+            ForeColor = textMuted,
+            Font = new System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Underline),
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Width = form.ClientSize.Width,
+            Height = 22,
+            Top = btnLogin.Bottom + 18,
+            Left = 0,
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        lblHelp.MouseEnter += (s, e) => lblHelp.ForeColor = accent;
+        lblHelp.MouseLeave += (s, e) => lblHelp.ForeColor = textMuted;
+        lblHelp.Click += (sender, e) =>
         {
             Process.Start(new ProcessStartInfo
             {
@@ -708,28 +867,69 @@ public class Program
                 UseShellExecute = true
             });
         };
+        form.Controls.Add(lblHelp);
 
-        // Appui sur la touche "Entrée" pour valider
+        // Raccourcis clavier
         form.KeyPreview = true;
         form.KeyDown += (sender, e) =>
         {
-            if (e.KeyCode == System.Windows.Forms.Keys.Enter)
-            {
-                btnSave.PerformClick();
-            }
+            if (e.KeyCode == System.Windows.Forms.Keys.Enter) btnLogin.PerformClick();
+            else if (e.KeyCode == System.Windows.Forms.Keys.Escape) form.Close();
         };
 
-        // Ajout des contrôles à la fenêtre
-        form.Controls.Add(lblTitle);
-        form.Controls.Add(lblEmail);
-        form.Controls.Add(txtEmail);
-        form.Controls.Add(lblPassword);
-        form.Controls.Add(txtPassword);
-        form.Controls.Add(btnSave);
-        form.Controls.Add(btnHelp);
-
-
         System.Windows.Forms.Application.Run(form);
+    }
+
+    private static (System.Windows.Forms.Panel Container, System.Windows.Forms.TextBox Field) BuildField(
+        System.Windows.Forms.Form parent, string label, int top, int x, int width,
+        System.Drawing.Color bg, System.Drawing.Color textColor, System.Drawing.Color labelColor,
+        System.Drawing.Color borderColor, System.Drawing.Color accent)
+    {
+        var lbl = new System.Windows.Forms.Label
+        {
+            Text = label,
+            ForeColor = labelColor,
+            Font = new System.Drawing.Font("Segoe UI", 8, System.Drawing.FontStyle.Bold),
+            Left = x,
+            Top = top,
+            Width = width,
+            Height = 16,
+        };
+        parent.Controls.Add(lbl);
+
+        var container = new System.Windows.Forms.Panel
+        {
+            Width = width,
+            Height = 40,
+            Left = x,
+            Top = top + 18,
+            BackColor = bg,
+        };
+
+        var field = new System.Windows.Forms.TextBox
+        {
+            BorderStyle = System.Windows.Forms.BorderStyle.None,
+            BackColor = bg,
+            ForeColor = textColor,
+            Font = new System.Drawing.Font("Segoe UI", 11),
+            Left = 12,
+            Top = 12,
+            Width = width - 24,
+        };
+        container.Controls.Add(field);
+
+        // Trait coloré en bas (doré quand le champ a le focus, gris sinon)
+        container.Paint += (s, e) =>
+        {
+            var color = field.Focused ? accent : borderColor;
+            using var pen = new System.Drawing.Pen(color, 2);
+            e.Graphics.DrawLine(pen, 0, container.Height - 1, container.Width, container.Height - 1);
+        };
+        field.Enter += (s, e) => container.Invalidate();
+        field.Leave += (s, e) => container.Invalidate();
+
+        parent.Controls.Add(container);
+        return (container, field);
     }
     public static Credentials? GetCredentials()
     {
@@ -818,7 +1018,6 @@ public class Program
     }
 
 
-    // TODO: 
     public static void RunInstallUpdate()
     {
         string batPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Updater.bat");
