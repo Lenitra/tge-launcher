@@ -16,8 +16,18 @@ public class Program
 
 
 
+    internal static bool SkipEts2Launch { get; private set; }
+
     static void Main(string[] args)
     {
+        try { Console.OutputEncoding = System.Text.Encoding.UTF8; } catch { }
+        ErrorLogger.RegisterGlobalHandlers();
+
+        SkipEts2Launch = args.Any(a => string.Equals(a, "--no-ets2-launch", StringComparison.OrdinalIgnoreCase));
+        if (SkipEts2Launch)
+        {
+            Console.WriteLine("[TEST] Mode --no-ets2-launch actif : ETS2 ne sera pas lancé.");
+        }
 
         if (!IsLatestModVersionAsync().Result)
         {
@@ -35,8 +45,6 @@ public class Program
         KillTrucksBook();
         Thread.Sleep(500); // Attendre un peu pour s'assurer que le processus est bien terminé
 
-        // CheckAndUpdateLauncher();
-
         if (!ETS2RegistryKeyExist())
         {
             Console.WriteLine("Premier lancement...");
@@ -52,7 +60,13 @@ public class Program
         ModifierCheminETS2(FindEuroTrucks2Exe() ?? string.Empty);
 
 
-        while (CheckLogin() == false || GetCredentials() == null || GetCredentials().Email == string.Empty || GetCredentials().Password == string.Empty)
+        // Toujours afficher le launcher (même si les identifiants sont déjà valides),
+        // sauf en mode test où on veut un flow non-interactif.
+        if (SkipEts2Launch && CheckLogin())
+        {
+            Console.WriteLine("[TEST] Identifiants valides — formulaire de login ignoré.");
+        }
+        else
         {
             SauvegarderIdentifiants();
         }
@@ -72,6 +86,12 @@ public class Program
             if (DetectPageOnTrucksBook() == "home")
             {
                 Thread.Sleep(500);
+                if (SkipEts2Launch)
+                {
+                    Console.WriteLine("[TEST] Page 'home' détectée — fermeture de TrucksBook et sortie sans clic sur le bouton ETS2.");
+                    KillTrucksBook();
+                    return;
+                }
                 StartETS2();
                 etsStarted = true;
             }
@@ -100,6 +120,7 @@ public class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Erreur lors du lancement de TrucksBook : {ex.Message}");
+                ErrorLogger.LogException(ex, "StartTrucksBook");
             }
         }
         else
@@ -120,6 +141,7 @@ public class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Erreur lors de la fermeture de TrucksBook : {ex.Message}");
+                ErrorLogger.LogException(ex, "KillTrucksBook");
             }
         }
         else
@@ -187,6 +209,7 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors de la connexion: {ex.Message}");
+            ErrorLogger.LogException(ex, "LoginToTrucksBook");
         }
     }
 
@@ -199,32 +222,35 @@ public class Program
             Console.WriteLine("Identifiants invalides dans credentials.json.");
             return false;
         }
+        return CheckLoginRemote(creds.Email, creds.Password);
+    }
+
+    static bool CheckLoginRemote(string email, string password)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+            return false;
 
         try
         {
-            using var client = new HttpClient();
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("tge-launcher");
 
             var url = "https://trucksbook.eu/login-user";
             var form = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("email", creds.Email),
-                new KeyValuePair<string, string>("pass", creds.Password),
+                new KeyValuePair<string, string>("email", email),
+                new KeyValuePair<string, string>("pass", password),
             });
 
             using var response = client.PostAsync(url, form).GetAwaiter().GetResult();
-            bool ok = response.StatusCode == HttpStatusCode.OK;
-            // Afficher la réponse de la requête dans la console
-            // Console.WriteLine(response.Content.ReadAsStringAsync().GetAwaiter().GetResult().Split('{"status"')[1]);
-            if (ok && response.Content.ReadAsStringAsync().GetAwaiter().GetResult().Contains("\"status\":\"success\""))
-            {
-                return ok;
-            }
-            return false;
+            if (response.StatusCode != HttpStatusCode.OK) return false;
+            string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            return body.Contains("\"status\":\"success\"");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors de la vérification du login: {ex.Message}");
+            ErrorLogger.LogException(ex, "CheckLoginRemote");
             return false;
         }
     }
@@ -350,6 +376,7 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine("Erreur lors de la modification de la clé : " + ex.Message);
+            ErrorLogger.LogException(ex, "ModifierCheminETS2");
         }
     }
 
@@ -397,6 +424,7 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors de la récupération des processus : {ex.Message}");
+            ErrorLogger.LogException(ex, "GetProcessByNames");
             return null;
         }
     }
@@ -500,6 +528,7 @@ public class Program
             catch (Exception ex)
             {
                 Console.WriteLine($"Erreur lors de la recherche de eurotrucks2.exe : {ex.Message}");
+                ErrorLogger.LogException(ex, "FindEuroTrucks2Exe");
             }
         }
 
@@ -553,6 +582,7 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors de la suppression des anciens mods : {ex.Message}");
+            ErrorLogger.LogException(ex, "deleteOldMods");
         }
     }
 
@@ -581,6 +611,7 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors de l'extraction du mod : {ex.Message}");
+            ErrorLogger.LogException(ex, "InstallMod");
         }
 
     }
@@ -618,14 +649,6 @@ public class Program
     }
 
 
-    public static bool IsModUpToDate()
-    {
-        // TODO: Comparer la version du mod avec la version attendue
-        // Logique pour vérifier si le mod est à jour
-        return true;
-    }
-
-
     #endregion
 
 
@@ -660,11 +683,11 @@ public class Program
         var form = new System.Windows.Forms.Form
         {
             Text = "TGE Launcher",
-            ClientSize = new System.Drawing.Size(420, 540),
+            ClientSize = new System.Drawing.Size(420, 600),
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.None,
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen,
             BackColor = bgPrimary,
-            TopMost = true,
+            ShowInTaskbar = true,
         };
 
         // Icône de fenêtre / barre des tâches
@@ -674,7 +697,7 @@ public class Program
             if (File.Exists(iconPath))
                 form.Icon = new System.Drawing.Icon(iconPath);
         }
-        catch (Exception ex) { Console.WriteLine($"Icône non chargée : {ex.Message}"); }
+        catch (Exception ex) { Console.WriteLine($"Icône non chargée : {ex.Message}"); ErrorLogger.LogException(ex, "Chargement icône"); }
 
         bool fermetureVolontaire = false;
         form.FormClosed += (s, e) =>
@@ -703,6 +726,27 @@ public class Program
             Dock = System.Windows.Forms.DockStyle.Fill,
         };
         titleBar.Controls.Add(titleLabel);
+
+        // Bouton Reduire (ajoute en premier pour se placer a gauche du bouton Fermer
+        // car les controles Dock=Right docked plus tard prennent le bord droit en priorite).
+        var minBtn = new System.Windows.Forms.Button
+        {
+            Text = "—",
+            Width = 46,
+            Dock = System.Windows.Forms.DockStyle.Right,
+            FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+            ForeColor = textMuted,
+            BackColor = bgTitleBar,
+            Font = new System.Drawing.Font("Segoe UI", 11, System.Drawing.FontStyle.Bold),
+            TabStop = false,
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        minBtn.FlatAppearance.BorderSize = 0;
+        minBtn.FlatAppearance.MouseOverBackColor = bgField;
+        minBtn.MouseEnter += (s, e) => minBtn.ForeColor = System.Drawing.Color.White;
+        minBtn.MouseLeave += (s, e) => minBtn.ForeColor = textMuted;
+        minBtn.Click += (s, e) => form.WindowState = System.Windows.Forms.FormWindowState.Minimized;
+        titleBar.Controls.Add(minBtn);
 
         var closeBtn = new System.Windows.Forms.Button
         {
@@ -753,7 +797,7 @@ public class Program
             if (File.Exists(logoPath))
                 logoBox.Image = System.Drawing.Image.FromFile(logoPath);
         }
-        catch (Exception ex) { Console.WriteLine($"Logo non chargé : {ex.Message}"); }
+        catch (Exception ex) { Console.WriteLine($"Logo non chargé : {ex.Message}"); ErrorLogger.LogException(ex, "Chargement logo"); }
         form.Controls.Add(logoBox);
 
         // === Titres ===
@@ -796,14 +840,68 @@ public class Program
         pwField.Field.UseSystemPasswordChar = true;
         pwField.Field.Text = GetCredentials()?.Password ?? string.Empty;
 
-        // === Bouton de connexion ===
+        // === Bandeau d'erreur (caché par défaut, fermable) ===
+        var errorBg     = System.Drawing.Color.FromArgb(50, 28, 32);
+        var errorAccent = System.Drawing.Color.FromArgb(220, 80, 80);
+        var errorText   = System.Drawing.Color.FromArgb(245, 130, 130);
+
+        var errorPanel = new System.Windows.Forms.Panel
+        {
+            Width = fieldWidth,
+            Height = 36,
+            Left = fieldX,
+            Top = pwField.Container.Bottom + 12,
+            BackColor = errorBg,
+            Visible = false,
+        };
+        var errorLabel = new System.Windows.Forms.Label
+        {
+            ForeColor = errorText,
+            Font = new System.Drawing.Font("Segoe UI", 9),
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Top = 0,
+            Left = 12,
+            Width = errorPanel.Width - 44,
+            Height = errorPanel.Height,
+        };
+        errorPanel.Controls.Add(errorLabel);
+        var errorClose = new System.Windows.Forms.Label
+        {
+            Text = "×",
+            ForeColor = errorText,
+            Font = new System.Drawing.Font("Segoe UI", 12, System.Drawing.FontStyle.Bold),
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Width = 28,
+            Height = errorPanel.Height,
+            Top = 0,
+            Left = errorPanel.Width - 30,
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        errorClose.Click += (s, e) => errorPanel.Visible = false;
+        errorPanel.Controls.Add(errorClose);
+        errorPanel.Paint += (s, e) =>
+        {
+            using var pen = new System.Drawing.Pen(errorAccent, 3);
+            e.Graphics.DrawLine(pen, 0, 0, 0, errorPanel.Height);
+        };
+        form.Controls.Add(errorPanel);
+
+        void ShowError(string msg)
+        {
+            errorLabel.Text = msg;
+            errorPanel.Visible = true;
+            errorPanel.BringToFront();
+        }
+        void HideError() => errorPanel.Visible = false;
+
+        // === Bouton principal (lancement) ===
         var btnLogin = new System.Windows.Forms.Button
         {
-            Text = "SE CONNECTER",
+            Text = "JOUER",
             Width = fieldWidth,
             Height = 44,
             Left = fieldX,
-            Top = pwField.Container.Bottom + 24,
+            Top = errorPanel.Bottom + 12,
             FlatStyle = System.Windows.Forms.FlatStyle.Flat,
             BackColor = accent,
             ForeColor = bgPrimary,
@@ -815,23 +913,34 @@ public class Program
         btnLogin.FlatAppearance.MouseDownBackColor = accentDown;
         btnLogin.Click += (sender, e) =>
         {
+            HideError();
             string email = emailField.Field.Text.Trim();
             string password = pwField.Field.Text;
 
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
             {
-                System.Windows.Forms.MessageBox.Show(form, "Veuillez remplir tous les champs.",
-                    "Champs requis",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Warning);
+                ShowError("Veuillez remplir tous les champs.");
                 return;
             }
             if (!Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
             {
-                System.Windows.Forms.MessageBox.Show(form, "Adresse email invalide.",
-                    "Email",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Warning);
+                ShowError("Adresse email invalide.");
+                return;
+            }
+
+            string previousText = btnLogin.Text;
+            btnLogin.Enabled = false;
+            btnLogin.Text = "VÉRIFICATION...";
+            System.Windows.Forms.Application.DoEvents();
+
+            bool ok = CheckLoginRemote(email, password);
+
+            btnLogin.Text = previousText;
+            btnLogin.Enabled = true;
+
+            if (!ok)
+            {
+                ShowError("Identifiants incorrects, veuillez réessayer.");
                 return;
             }
 
@@ -844,6 +953,42 @@ public class Program
         };
         form.Controls.Add(btnLogin);
 
+        // === Bouton Inscription (secondaire, ouvre le navigateur) ===
+        var btnRegister = new System.Windows.Forms.Button
+        {
+            Text = "S'INSCRIRE",
+            Width = fieldWidth,
+            Height = 40,
+            Left = fieldX,
+            Top = btnLogin.Bottom + 12,
+            FlatStyle = System.Windows.Forms.FlatStyle.Flat,
+            BackColor = bgPrimary,
+            ForeColor = accent,
+            Font = new System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold),
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        btnRegister.FlatAppearance.BorderColor = accent;
+        btnRegister.FlatAppearance.BorderSize = 1;
+        btnRegister.FlatAppearance.MouseOverBackColor = bgField;
+        btnRegister.FlatAppearance.MouseDownBackColor = borderField;
+        btnRegister.Click += (sender, e) =>
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://trucksbook.eu/registration",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur lors de l'ouverture de la page d'inscription : {ex.Message}");
+                ErrorLogger.LogException(ex, "Ouverture page inscription");
+            }
+        };
+        form.Controls.Add(btnRegister);
+
         // === Lien Discord ===
         var lblHelp = new System.Windows.Forms.Label
         {
@@ -853,7 +998,7 @@ public class Program
             TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
             Width = form.ClientSize.Width,
             Height = 22,
-            Top = btnLogin.Bottom + 18,
+            Top = btnRegister.Bottom + 18,
             Left = 0,
             Cursor = System.Windows.Forms.Cursors.Hand,
         };
@@ -991,9 +1136,10 @@ public class Program
 
             }
         }
-        catch
+        catch (Exception ex)
         {
             Console.WriteLine("Erreur lors de la vérification de la version GitHub.");
+            ErrorLogger.LogException(ex, "IsLatestModVersionAsync");
             return true;
         }
 
@@ -1003,18 +1149,6 @@ public class Program
         Console.WriteLine($"Comparaison des versions du launcher : {(localVersion >= githubVersion ? "À jour" : "Obsolète")}");
         return localVersion >= githubVersion;
 
-    }
-
-
-    public static void CheckAndUpdateLauncher()
-    {
-        if (IsLatestModVersionAsync().Result)
-        {
-            Console.WriteLine("Le launcher est à jour.");
-            return;
-        }
-        Console.WriteLine("Une nouvelle version du launcher est disponible.");
-        DownloadLatestModVersion();
     }
 
 
@@ -1101,79 +1235,10 @@ public class Program
         catch (Exception ex)
         {
             Console.WriteLine($"Erreur lors du téléchargement de la dernière version du mod : {ex.Message}");
+            ErrorLogger.LogException(ex, "DownloadLatestModVersion");
         }
     }
 
-
-
-    #region Utility Methods
-    public static void ListInteractiveElementsWithFlaUI()
-    {
-        try
-        {
-            using var automation = new UIA3Automation();
-            using var app = FlaUI.Core.Application.Attach(GetLogiciel());
-
-            var window = app.GetMainWindow(automation);
-            if (window == null)
-            {
-                Console.WriteLine("Fenêtre principale non trouvée.");
-                return;
-            }
-
-            Console.WriteLine($"Fenêtre principale détectée : {window.Title}\n");
-            Console.WriteLine("Exploration des éléments interactifs de la fenêtre :\n");
-
-            ListElementsRecursive(window, 0);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Erreur lors de l'exploration de la fenêtre : " + ex.Message);
-        }
-    }
-
-    private static void ListElementsRecursive(AutomationElement element, int level)
-    {
-        string indent = new string(' ', level * 2);
-        string name = element.Name;
-        string controlType = element.ControlType.ToString() ?? "?";
-        string automationId = element.AutomationId;
-
-        Console.WriteLine($"{indent}- [{controlType}] Name: '{name}'  Id: '{automationId}'");
-
-        var children = element.FindAllChildren();
-        foreach (var child in children)
-        {
-            ListElementsRecursive(child, level + 1);
-        }
-    }
-
-
-
-    public static void DebugElement(AutomationElement element)
-    {
-        if (element == null)
-        {
-            Console.WriteLine("[DebugElement] Element est null.");
-            return;
-        }
-        Console.WriteLine("[DebugElement] --- Détail de l'élément ---");
-        Console.WriteLine($"Type: {element.ControlType}");
-        Console.WriteLine($"Name: '{element.Name}'");
-        Console.WriteLine($"AutomationId: '{element.AutomationId}'");
-        Console.WriteLine($"ClassName: '{element.ClassName}'");
-        Console.WriteLine($"FrameworkId: '{element.FrameworkType}'");
-        Console.WriteLine($"BoundingRectangle: {element.BoundingRectangle}");
-        Console.WriteLine($"IsEnabled: {element.IsEnabled}");
-        Console.WriteLine($"IsOffscreen: {element.IsOffscreen}");
-        Console.WriteLine("[DebugElement] --------------------------");
-    }
-
-
-    #endregion
 
 
 }
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-#pragma warning disable CS8603 // Dereference of a possibly null reference.
-#pragma warning disable CS8600// Dereference of a possibly null reference.

@@ -7,3 +7,8 @@ build
 */bin/
 */obj/
 Launcher.bat
+logs/
+TestResults/
+*/TestResults/
+tests-credentials.json
+/.claude/
