@@ -683,7 +683,7 @@ public class Program
         var form = new System.Windows.Forms.Form
         {
             Text = "TGE Launcher",
-            ClientSize = new System.Drawing.Size(420, 600),
+            ClientSize = new System.Drawing.Size(420, 640),
             FormBorderStyle = System.Windows.Forms.FormBorderStyle.None,
             StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen,
             BackColor = bgPrimary,
@@ -1014,6 +1014,39 @@ public class Program
         };
         form.Controls.Add(lblHelp);
 
+        // === Lien : créer un raccourci sur le bureau ===
+        var lblShortcut = new System.Windows.Forms.Label
+        {
+            Text = "Créer un raccourci sur le bureau",
+            ForeColor = textMuted,
+            Font = new System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Underline),
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Width = form.ClientSize.Width,
+            Height = 22,
+            Top = lblHelp.Bottom + 8,
+            Left = 0,
+            Cursor = System.Windows.Forms.Cursors.Hand,
+        };
+        string lblShortcutDefaultText = lblShortcut.Text;
+        lblShortcut.MouseEnter += (s, e) => lblShortcut.ForeColor = accent;
+        lblShortcut.MouseLeave += (s, e) => lblShortcut.ForeColor = textMuted;
+        lblShortcut.Click += (sender, e) =>
+        {
+            bool ok = CreerRaccourciBureau(out string msg);
+            lblShortcut.Text = msg;
+            lblShortcut.ForeColor = ok ? accent : System.Drawing.Color.FromArgb(220, 80, 80);
+            var resetTimer = new System.Windows.Forms.Timer { Interval = 2500 };
+            resetTimer.Tick += (s2, e2) =>
+            {
+                lblShortcut.Text = lblShortcutDefaultText;
+                lblShortcut.ForeColor = textMuted;
+                resetTimer.Stop();
+                resetTimer.Dispose();
+            };
+            resetTimer.Start();
+        };
+        form.Controls.Add(lblShortcut);
+
         // Raccourcis clavier
         form.KeyPreview = true;
         form.KeyDown += (sender, e) =>
@@ -1086,6 +1119,81 @@ public class Program
         return null;
     }
 
+
+    // Crée un .lnk pointant sur l'exécutable courant directement sur le bureau de l'utilisateur.
+    // Late binding sur WScript.Shell pour éviter d'ajouter une référence COM au projet.
+    public static bool CreerRaccourciBureau(out string message)
+    {
+        try
+        {
+            string? exePath = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(exePath) || !File.Exists(exePath))
+            {
+                message = "Exécutable introuvable.";
+                return false;
+            }
+
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            string shortcutPath = Path.Combine(desktop, "TGE Launcher.lnk");
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "assets", "logo.ico");
+            string workingDir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory;
+
+            var shellType = Type.GetTypeFromProgID("WScript.Shell");
+            if (shellType == null)
+            {
+                message = "WScript.Shell indisponible.";
+                return false;
+            }
+
+            object? shell = Activator.CreateInstance(shellType);
+            if (shell == null)
+            {
+                message = "Impossible d'initialiser WScript.Shell.";
+                return false;
+            }
+
+            try
+            {
+                object? shortcut = shellType.InvokeMember("CreateShortcut",
+                    System.Reflection.BindingFlags.InvokeMethod, null, shell, new object[] { shortcutPath });
+                if (shortcut == null)
+                {
+                    message = "Création du raccourci impossible.";
+                    return false;
+                }
+
+                var sType = shortcut.GetType();
+                sType.InvokeMember("TargetPath", System.Reflection.BindingFlags.SetProperty,
+                    null, shortcut, new object[] { exePath });
+                sType.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.SetProperty,
+                    null, shortcut, new object[] { workingDir });
+                sType.InvokeMember("Description", System.Reflection.BindingFlags.SetProperty,
+                    null, shortcut, new object[] { "Lancer TGE Launcher pour ETS2" });
+                if (File.Exists(iconPath))
+                {
+                    sType.InvokeMember("IconLocation", System.Reflection.BindingFlags.SetProperty,
+                        null, shortcut, new object[] { iconPath });
+                }
+                sType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod,
+                    null, shortcut, null);
+
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut);
+            }
+            finally
+            {
+                System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell);
+            }
+
+            message = "Raccourci créé sur le bureau ✓";
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorLogger.LogException(ex, "CreerRaccourciBureau");
+            message = $"Erreur : {ex.Message}";
+            return false;
+        }
+    }
 
 
     public static async Task<bool> IsLatestModVersionAsync()
