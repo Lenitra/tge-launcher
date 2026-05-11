@@ -1,0 +1,18 @@
+SiiNunit
+{
+accessory_engine_data : tge2500.iveco_sway.engine
+{
+	name: "TGE2500"
+	price: 32984
+	unlock: 1
+	info[]: "2500 hp"
+	info[]: "5000 nm"
+	info[]: "500-3000 rpm"
+	icon: "engine_iveco_cursor"
+
+	torque: 5000
+	rpm_limit: 3000
+	volume: 16.1
+	no_adblue_power_limit: 1.0
+}
+}

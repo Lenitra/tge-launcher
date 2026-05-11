@@ -19,28 +19,28 @@ bank_loan_data: bank.data.loan1
 {
 	amount: 10000
 	interest_rate: 0.23	# 23 %
-	duration: 5		# in weeks
+	duration: 15		# in weeks
 }
 
 bank_loan_data: bank.data.loan2
 {
 	amount: 50000
 	interest_rate: 0.2	# 20 %
-	duration: 5		# in weeks
+	duration: 15		# in weeks
 }
 
 bank_loan_data: bank.data.loan3
 {
 	amount: 100000
-	interest_rate: 0.18	# 18 %
-	duration: 5		# in weeks
+	interest_rate: 0.01	# 1 %
+	duration: 15		# in weeks
 }
 
 bank_loan_data: bank.data.loan4
 {
-	amount: 20000000
+	amount: 1000000
 	interest_rate: 0.01	# 1 %
-	duration: 10000		# in weeks
+	duration: 15		# in weeks
 }
 
 }

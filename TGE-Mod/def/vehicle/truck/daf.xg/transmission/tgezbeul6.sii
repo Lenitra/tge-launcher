@@ -1,0 +1,24 @@
+SiiNunit
+{
+accessory_transmission_data : tgezbeul6.daf.xg.transmission
+{
+	name: "TGE Zbeul 6-Speed"
+	price: 32984
+	unlock: 1
+	info[]: "6 + R"
+	info[]: "1ere = catapulte"
+	info[]: "6eme = 400+ km/h"
+	icon: "transmission"
+
+	ratios_reverse[]: -10.00
+
+	ratios_forward[]: 18.00
+	ratios_forward[]: 8.00
+	ratios_forward[]: 3.80
+	ratios_forward[]: 1.80
+	ratios_forward[]: 0.85
+	ratios_forward[]: 0.30
+
+	differential_ratio: 3.50
+}
+}

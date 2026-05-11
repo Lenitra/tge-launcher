@@ -1,0 +1,23 @@
+SiiNunit
+{
+accessory_transmission_data : tge6.volvo.fh_2021.transmission
+{
+	name: "TGE 6-speed 2500 "
+	price: 32984
+	unlock: 1
+	info[]: "6 + R"
+	info[]: "Rapports tres longs"
+	icon: "transmission"
+
+	ratios_reverse[]: -3.60
+
+	ratios_forward[]: 4.00
+	ratios_forward[]: 2.55
+	ratios_forward[]: 1.68
+	ratios_forward[]: 1.12
+	ratios_forward[]: 0.76
+	ratios_forward[]: 0.50
+
+	differential_ratio: 2.28
+}
+}

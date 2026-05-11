@@ -1,0 +1,17 @@
+SiiNunit
+{
+accessory_wheel_data : zbeul.ftire
+{
+	name: "TGE Zbeul Slick F"
+	price: 32984
+	unlock: 0
+	icon: "f_tire_01"
+	part_type: aftermarket
+
+	model: "/vehicle/truck/upgrade/wheel/tire/front_1.pmd"
+	look: trailmaster
+	roll_resistance: 0.01
+	wet_grip: 9.99
+	noise_volume: 50
+}
+}

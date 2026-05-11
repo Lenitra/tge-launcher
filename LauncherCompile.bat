@@ -57,5 +57,6 @@ powershell -Command "Compress-Archive -Path '%BUILDDIR%\*' -DestinationPath '%BU
 
 echo.
 echo === Build OK ===
+start "" explorer.exe /select,"%BUILDDIR%\LauncherTGE_%FILENAMEE%.zip"
 endlocal
 exit /b 0

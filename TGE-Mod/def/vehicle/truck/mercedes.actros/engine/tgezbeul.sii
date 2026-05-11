@@ -1,0 +1,21 @@
+SiiNunit
+{
+accessory_engine_data : tgezbeul.mercedes.actros.engine
+{
+	name: "TGE Zbeul 542001 hp"
+	price: 32984
+	unlock: 1
+	info[]: "542001 hp"
+	info[]: "200000 nm"
+	info[]: "0-12000 rpm"
+	info[]: "Koenigsegg killer"
+	icon: "engine_mercedes_om501"
+
+	torque: 200000
+	rpm_limit: 12000
+	rpm_limit_neutral: 13000
+	volume: 999.9
+	no_adblue_power_limit: 1.0
+	adblue_consumption: 0
+}
+}
